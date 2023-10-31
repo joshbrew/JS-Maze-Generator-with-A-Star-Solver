@@ -127,12 +127,16 @@ export class AStarSolver {
         }
     }
 
-    heuristicGrid(cell1, cell2) {
+    heuristicGrid(cell1, cell2) { //A heuristic function for grid-based pathfinding.
+        // The "Manhattan Distance" is calculated as the absolute difference of the x coordinates
+        // plus the absolute difference of the y coordinates. Assumes only horizontal or vertical movement
         return Math.abs(cell1.x - cell2.x) + Math.abs(cell1.y - cell2.y);
     }
   
     //we can allow for diagonal movements like this
     heuristicDiag(cell1, cell2) {
+        // The Euclidean Distance is calculated as the square root of the sum of the squares
+        // of the differences in x and y coordinates.
         return Math.sqrt(Math.pow(cell1.x - cell2.x, 2) + Math.pow(cell1.y - cell2.y, 2));
     }
 
