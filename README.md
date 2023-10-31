@@ -4,13 +4,15 @@ Interactive maze generator with start/end goals, multiple players, an A* solver 
 
 Comes with playable Depth-First and Hunt and Kill generator examples and generally neatly organized classes and explanatory comments.
 
+Lots of comments in the code for explaining.
+
 # Run Example
 
 With latest NodeJS LTS installed. Open this folder in the command line (e.g. via VS Code).
 
 Run: `npm i -g tinybuild` the `npm start` or `tinybuild`
 
-![cap](Capture.png)
+![cap](Capture.PNG)
 
 
 # Usage
