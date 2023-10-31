@@ -1,0 +1,56 @@
+body {
+    background-color: darkslategray;
+    color:white;
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+  }
+
+  #game1,
+  #game2 {
+    max-width: 600px;
+    margin: 20px auto;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+
+  #game1 div,
+  #game2 div {
+    margin-bottom: 15px;
+  }
+
+  button {
+    padding: 8px 15px;
+    font-size: 16px;
+    color:white;
+    cursor: pointer;
+    background-color: royalblue;
+    border: 0;
+    border-radius: 5px;
+    margin-right: 10px;
+  }
+
+  button:hover {
+    background-color: #4cae4c;
+  }
+
+  input[type="number"] {
+    padding: 8px;
+    width: 60px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin-right: 10px;
+  }
+
+  canvas {
+    display: block;
+    margin: 0 auto;
+    border: 1px solid #ddd;
+    background-color: ghostwhite;
+  }
+
+  div {
+    font-size: 18px;
+  }
