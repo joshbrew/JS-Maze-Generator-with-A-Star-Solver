@@ -10,7 +10,7 @@ With latest NodeJS LTS installed. Open this folder in the command line (e.g. via
 
 Run: `npm i -g tinybuild` the `npm start` or `tinybuild`
 
-![cap](Capture.png)
+![cap](./Capture.PNG)
 
 
 # Usage
