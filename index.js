@@ -57,6 +57,44 @@ const mazeGame2 = new MazeGame(maze2, 'canvas2', aStarSolver2);
 //setup UI
 document.addEventListener('keydown', MazeGame.keyDownHandler);
 
+let onPlayerCollision = (player, wallDirection, playerIndex) => {
+    console.log("Collision: ", player, wallDirection, playerIndex);
+    const canvas = MazeGame.activeGame.canvas; //canvas element
+
+    // Define the intensity and duration of the shake
+    let intensity = 2;
+    let duration = 200; // in milliseconds
+    let frequency = 50; // how many times it shakes back and forth
+
+    // Calculate the initial offset based on the wall direction
+    let offsetX = 0, offsetY = 0;
+    if (wallDirection === "top") offsetY = 1;
+    else if (wallDirection === "bottom") offsetY = -1;
+    else if (wallDirection === "left") offsetX = 1;
+    else if (wallDirection === "right") offsetX = -1;
+
+    // Perform the shake
+    let startTime = Date.now();
+    let shake = () => {
+        let elapsed = Date.now() - startTime;
+        let progress = elapsed / duration;
+
+        if (progress < 1) {
+            let amplitude = intensity * (1 - Math.pow(progress - 1, 2)); // a simple ease out function
+            let sineValue = Math.sin(progress * frequency * Math.PI) * amplitude;
+            canvas.style.transform = `translate(${offsetX * sineValue}px, ${offsetY * sineValue}px)`;
+            requestAnimationFrame(shake);
+        } else {
+            // Reset the canvas position when the shake is complete
+            canvas.style.transform = 'translate(0, 0)';
+        }
+    };
+    shake();
+}
+
+mazeGame1.onPlayerCollision = onPlayerCollision;
+mazeGame2.onPlayerCollision = onPlayerCollision;
+
 mazeGame1.setAIInputEvents('depthfirstintv', 'depthfirstsolve', 'depthfirstrace');
 mazeGame2.setAIInputEvents('huntkillintv', 'huntkillsolve', 'huntkillrace');
 

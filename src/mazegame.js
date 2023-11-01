@@ -73,32 +73,36 @@ export class MazeGame {
         MazeGame.activeGame.canvas.style.border = '1px solid orange';
     }
 
+    onPlayerCollision = (player, wallDirection, playerIndex) => {
+        console.log("There's a wall in the way!", player, wallDirection, playerIndex)
+    }
+
     static keyDownHandler(event) {
         // Ensure there is an active game
         if (!MazeGame.activeGame) return;
 
         // Apply controls to the active game
-        const { maze, context, cellSize, strokeStyle } = MazeGame.activeGame;
+        const { maze, context, cellSize, strokeStyle, onPlayerCollision } = MazeGame.activeGame;
         switch(event.key) {
             case 'ArrowUp':
             case 'w':
                 event.preventDefault();
-                maze.movePlayer('up', 0);
+                maze.movePlayer('up', 0, onPlayerCollision);
                 break;
             case 'ArrowDown':
             case 's':
                 event.preventDefault();
-                maze.movePlayer('down', 0);
+                maze.movePlayer('down', 0, onPlayerCollision);
                 break;
             case 'ArrowLeft':
             case 'a':
                 event.preventDefault();
-                maze.movePlayer('left', 0);
+                maze.movePlayer('left', 0, onPlayerCollision);
                 break;
             case 'ArrowRight':
             case 'd':
                 event.preventDefault();
-                maze.movePlayer('right', 0);
+                maze.movePlayer('right', 0, onPlayerCollision);
                 break;
         }
         // Redraw the maze after moving the player

@@ -170,6 +170,23 @@ export class Maze {
         this.end.setEnd();
     }
 
+    // Method to reset the maze
+    reset(newGoal=true) {
+        this.won = false;  // Reset the won flag
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                this.cells[y][x].reset();
+            }
+        }
+        if(newGoal) {
+            this.setRandomStartAndEnd();
+            for(const key in this.players) {
+                this.visitedCells[key] = [];
+                this.setPlayer(this.start.x, this.start.y, key);
+            }
+        }
+    }
+
     //set start/end posts along different edges. Doesn't guarantee they aren't nearby.
     setRandomStartAndEnd() {
         // Set a random starting point
@@ -251,6 +268,37 @@ export class Maze {
         this.checkWin();
     }
 
+    movePlayer(direction, playerIndex, onCollision = (player, wallDirection, playerIndex) => {
+        console.log("There's a wall in the way!", player, wallDirection, playerIndex)
+    }) {
+        const { dx, dy } = typeof direction === 'object' ? direction : this.directions[direction]; //input {dx,dy} or "up"/"down"/"left"/"right"
+        
+        const currentCell = this.players[playerIndex].cell;
+        const newX = currentCell.x + dx;
+        const newY = currentCell.y + dy;
+      
+        // Check for walls in the direction of movement
+        const wallDirection = this.getWallDirection(dx, dy);
+        if (currentCell.walls[wallDirection]) {
+          if (onCollision) onCollision(this.players[playerIndex], wallDirection, playerIndex);
+          return;
+        }
+      
+        // If there are no walls, update the player's position
+        const newCell = this.getCell(newX, newY);
+        if (newCell) {
+          currentCell.clearPath();
+          this.players[playerIndex].cell = newCell;
+          newCell.setPath();
+          this.recordVisit(newCell, playerIndex);  // Record the cell visitation
+      
+          // Check for win condition
+          this.checkWin();
+        } else {
+          console.log("Player is trying to move outside of the maze boundaries!");
+        }
+    }
+
     checkWin() {
         if (this.won) return;  // Skip if the game has already been won
         
@@ -278,22 +326,6 @@ export class Maze {
         this.reset();
     }
 
-    // Method to reset the maze
-    reset(newGoal=true) {
-        this.won = false;  // Reset the won flag
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                this.cells[y][x].reset();
-            }
-        }
-        if(newGoal) {
-            this.setRandomStartAndEnd();
-            for(const key in this.players) {
-                this.visitedCells[key] = [];
-                this.setPlayer(this.start.x, this.start.y, key);
-            }
-        }
-    }
 
     recordVisit(cell, playerIndex) {
         const now = Date.now();
@@ -302,37 +334,6 @@ export class Maze {
         this.visitedCells[playerIndex].push({ cell, timestamp: now });
         if (this.visitedCells[playerIndex].length > this.playerPathLength) {
             this.visitedCells[playerIndex].shift();
-        }
-    }
-
-    movePlayer(direction, playerIndex, onCollision = (player, wallDirection, playerIndex) => {
-        console.log("There's a wall in the way!", player, wallDirection, playerIndex)
-      }) {
-        const { dx, dy } = typeof direction === 'object' ? direction : this.directions[direction]; //input {dx,dy} or "up"/"down"/"left"/"right"
-        
-        const currentCell = this.players[playerIndex].cell;
-        const newX = currentCell.x + dx;
-        const newY = currentCell.y + dy;
-      
-        // Check for walls in the direction of movement
-        const wallDirection = this.getWallDirection(dx, dy);
-        if (currentCell.walls[wallDirection]) {
-          if (onCollision) onCollision(this.players[playerIndex], wallDirection, playerIndex);
-          return;
-        }
-      
-        // If there are no walls, update the player's position
-        const newCell = this.getCell(newX, newY);
-        if (newCell) {
-          currentCell.clearPath();
-          this.players[playerIndex].cell = newCell;
-          newCell.setPath();
-          this.recordVisit(newCell, playerIndex);  // Record the cell visitation
-      
-          // Check for win condition
-          this.checkWin();
-        } else {
-          console.log("Player is trying to move outside of the maze boundaries!");
         }
     }
 
