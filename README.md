@@ -9,6 +9,7 @@ Maze examples:
 - Sidewinder
 - Ellers
 - Hunt & Kill with Braids
+- Removing random dead ends till no more 3 or 4 sided cells.
 
 Also a simple BabylonJS render with instanced static meshes. Needs to be threaded with better culling for actual use. 
 
