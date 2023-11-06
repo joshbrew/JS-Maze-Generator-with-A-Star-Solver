@@ -6,6 +6,8 @@ import { AStarSolver } from "./src/astar";
 import { MazeGame } from "./src/mazegame";
 import { generateDepthFirstMaze, generateHuntAndKillMaze } from "./src/generators";
 
+import * as BABYLON from 'babylonjs'
+
 document.body.insertAdjacentHTML('beforeend', `
 Click on a maze then use arrow keys to control.
   <div id="game1">
@@ -39,6 +41,9 @@ Click on a maze then use arrow keys to control.
         <button id="genhuntkill">Generate Maze</button>
     </div>
     <canvas id="canvas2" style="width: 50%;" width="500" height="500"></canvas>
+  </div>
+  <div id="babylonmaze">
+    <canvas id="renderCanvas" style="width: 50%;" width="800" height="800"></canvas>
   </div>
 `);
 
@@ -102,3 +107,202 @@ mazeGame1.setGeneratorInputEvents('gendepthfirst','depthfirstX','depthfirstY');
 mazeGame2.setGeneratorInputEvents('genhuntkill','huntkillX','huntkillY');
 
 
+
+
+
+
+async function setupBabylonJS() {
+  
+  // Get the canvas DOM element
+  let canvas = document.getElementById('renderCanvas');
+
+  const engine = new BABYLON.WebGPUEngine(canvas);
+  await engine.initAsync();
+
+  let scene, light;
+
+  let renderFunction = () => {
+      light.position.x = 10+10*Math.sin(Date.now()*0.001)  
+      scene.render();
+  }
+
+  function resetBabMaze() {
+    setupScene();
+    // setupShadowGenerator();
+    // clearWallsAndFloors();
+    // setInstances();
+  }
+
+  document.getElementById('genhuntkill').addEventListener('click',()=>{
+    resetBabMaze();
+  });
+
+  function setupScene() {
+    if(scene) {
+      scene.dispose();
+      engine.stopRenderLoop(renderFunction);
+      
+    }
+
+    scene = new BABYLON.Scene(engine);
+
+    // Create a FreeCamera, and set its position to {x: 0, y: 5, z: -10}
+    let camera = new BABYLON.FreeCamera('camera1', new BABYLON.Vector3(0, 50, -10), scene);
+
+    // Target the camera to scene origin
+    camera.setTarget(BABYLON.Vector3.Zero());
+
+    // Attach the camera to the canvas
+    camera.attachControl(canvas, false);
+
+    // Create a basic light, aiming 0, 1, 0 - meaning, to the sky
+    light = new BABYLON.SpotLight('light1', new BABYLON.Vector3(0, 5, -3.5), BABYLON.Vector3.Forward(), 2.2, 0, scene);
+    light.shadowEnabled = true;
+
+    const cellSize = 1;
+    const cellOffset = cellSize*0.5
+
+    let shadowGenerator;
+    let shadowMap;
+
+    function setupShadowGenerator() {
+      shadowGenerator = new BABYLON.ShadowGenerator(1024, light);
+      shadowGenerator.usePercentageCloserFiltering = true;
+      shadowMap = shadowGenerator.getShadowMap();
+    }
+
+    setupShadowGenerator();
+    
+    // Create a built-in "box" shape; its constructor takes 6 params: name, size, scene, updatable, sideOrientation
+    let wall = BABYLON.MeshBuilder.CreateBox('wall', {height: 1, width: 0.1, depth: 1}, scene);
+
+    wall.receiveShadows = true;
+    wall.isVisible = false; // Set the original wall as invisible; it's just a template
+
+    // Function to create and position a wall based on the MazeCell
+    function createWall(cell, direction) {
+        let instance = wall.createInstance('wall_' + cell.x + '_' + cell.y + '_' + direction);
+        instance.isVisible = true;
+        shadowMap.renderList.push(instance)
+      switch (direction) {
+        case 'top':
+          instance.position = new BABYLON.Vector3(cell.x * cellSize - cellOffset, cellOffset, cell.y * cellSize - cellSize);
+          instance.rotation.y = Math.PI / 2; // Wall is aligned along the x-axis
+          break;
+        case 'bottom':
+          instance.position = new BABYLON.Vector3(cell.x * cellSize - cellOffset, cellOffset, cell.y * cellSize);
+          instance.rotation.y = Math.PI / 2; // Wall is aligned along the x-axis
+          break;
+        case 'right':
+          instance.position = new BABYLON.Vector3(cell.x * cellSize, cellOffset, cell.y * cellSize - cellOffset);
+          instance.rotation.y = 0; // Wall is perpendicular to the x-axis
+          break;
+        case 'left':
+          instance.position = new BABYLON.Vector3(cell.x * cellSize - cellSize, cellOffset, cell.y * cellSize - cellOffset);
+          instance.rotation.y = 0; // Wall is perpendicular to the x-axis
+          break;
+      }
+        
+    }
+
+    // Create a template plane for the floor tiles
+    var floorTile = BABYLON.MeshBuilder.CreateBox('wall', {height: 1, width: 1, depth: 0.1}, scene);
+    floorTile.isVisible = false; // Set the original tile as invisible; it's just a template
+    // Prepare material for all tiles
+    var tileMaterial = new BABYLON.StandardMaterial("tileMaterial", scene);
+    //tileMaterial.disableLighting = true;
+
+    floorTile.receiveShadows = true;
+    tileMaterial.shadowEnabled = true;
+
+    //tileMaterial.emissiveColor = BABYLON.Color3.White();
+
+    // Function to create and color a floor tile based on the MazeCell
+    function createFloorTile(cell, row, col) {
+        let instance = floorTile.createInstance('tile_' + cell.x + '_' + cell.y);
+        instance.position = new BABYLON.Vector3((cell.x - cellOffset), 0, (cell.y - cellOffset)); // Adjust position to account for size
+        instance.alwaysSelectAsActiveMesh = true;
+        instance.rotation.x = Math.PI / 2; // Rotate to lay flat
+        shadowMap.renderList.push(instance)
+        // Assign a color to the instance based on cell properties
+        var color;
+        if (cell.isStart) {
+            color = new BABYLON.Color4(0, 1, 0, 1); // Start cell is green
+        } else if (cell.isEnd) {
+            color = new BABYLON.Color4(1, 0, 0, 1); // End cell is red
+        } else if (cell.isPath) {
+            color = new BABYLON.Color4(0.8, 0.8, 0.8, 1); // Path cell is lighter grey
+        } else color = new BABYLON.Color4(1, 1, 1, 1); // default color (white)
+
+        // Apply the color to the instance
+        instance.color = color; // Set the color directly to the instance
+
+        return instance;
+    }
+
+
+    function setInstances() {
+        
+      // Setup color buffer
+      let instanceCount = maze2.width * maze2.height;
+      let colorData = new Float32Array(4 * instanceCount);
+      let index = 0;
+
+      // Loop to create all tiles with their respective colors
+      for (var y = 0; y < maze2.height; y++) {
+        for (var x = 0; x < maze2.width; x++) {
+            let cell = maze2.cells[y][x];
+            let tile = createFloorTile(cell, y, x);
+            // Compute color data index
+            let colorIndex = index * 4;
+            colorData[colorIndex] = tile.color.r;
+            colorData[colorIndex + 1] = tile.color.g;
+            colorData[colorIndex + 2] = tile.color.b;
+            colorData[colorIndex + 3] = tile.color.a;
+            index++;
+
+            for (let wallDirection in cell.walls) {
+              if (cell.walls[wallDirection]) {
+                  createWall(cell, wallDirection);
+              }
+          }
+        }
+      }
+
+      // Apply the color buffer to the root tile
+      var buffer = new BABYLON.VertexBuffer(engine, colorData, BABYLON.VertexBuffer.ColorKind, false, false, 4, true);
+      floorTile.setVerticesBuffer(buffer);
+      floorTile.material = tileMaterial;
+
+    }
+
+
+    setInstances();
+
+    // Function to clear all wall and floor instances from the scene
+    function clearWallsAndFloors() {
+      // Filter all meshes that are instances of walls and floors
+      scene.meshes.filter(mesh => {
+        if(mesh.name.includes('wall_') || mesh.name.includes('tile_')) {
+          mesh.dispose(undefined,true);
+          return true;
+        }
+      });
+    }
+
+
+    // Run the engine to render the scene
+    engine.runRenderLoop(renderFunction);
+
+  }
+
+  setupScene();
+
+  // Resize the engine on window resize
+  window.addEventListener('resize', function () {
+      engine.resize();
+  });
+
+}
+
+setupBabylonJS();

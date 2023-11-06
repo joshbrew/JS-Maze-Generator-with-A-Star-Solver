@@ -8,6 +8,7 @@ export class Maze {
         down: { dx: 0, dy: 1 },
     };
 
+    width; height; generator; onWin;
     cells = [];
     players = {};
     visitedCells = {};// Rolling buffer to store the last 10 visited cells
@@ -26,7 +27,7 @@ export class Maze {
         if(onWin) this.onWin = onWin; // Store the win callback
 
         if(this.cells.length > 0) { //hard reset
-            this.cells = [];
+            this.cells.length = 0;
         }
 
         for (let y = 0; y < this.height; y++) {
@@ -47,8 +48,6 @@ export class Maze {
                 this.recordVisit(this.players[key].cell, key);  // Record the cell visitation
 
             }
-            // Check for win condition for the new player
-            this.checkWin();
         }
   
         if (typeof this.generator === 'function') {
@@ -307,12 +306,8 @@ export class Maze {
             
             if (player.cell === this.end) {
                 this.won = true;  // Set the won flag
-                if (typeof this.onWin === 'function') {
-                    this.onWin(player);
-                } else {
-                    // Handle game reset separately
-                    this.handleWin();
-                }
+                if (typeof this.onWin === 'function') this.onWin(player);
+                this.handleWin();
             }
         }
     }
@@ -396,17 +391,18 @@ export class Maze {
 
 //object representation of a maze cell in an xy grid
 export class MazeCell {
+    x; y; 
+    isStart; isPath; isEnd; 
+    visited = false; // A flag to indicate whether this cell has been visited during maze generation
+
+      // All cells start with all walls intact
+    walls = { top: true, right: true, bottom: true, left: true };
     // Constructor to initialize a cell at (x, y) coordinates
     constructor(x, y) {
       // Storing the x and y coordinates
       this.x = x;
       this.y = y;
   
-      // All cells start with all walls intact
-      this.walls = { top: true, right: true, bottom: true, left: true };
-  
-      // A flag to indicate whether this cell has been visited during maze generation
-      this.visited = false;
     }
   
     // Method to remove walls between this cell and another cell

@@ -22,8 +22,9 @@
   ],
   "author": "",
   "license": "",
-  "dependencies": {},
-  "devDependencies": {},
+  "dependencies": {
+    "babylonjs": "^6.28.1"
+  },
   "nodemonConfig": {
     "env": {
       "NODEMON": true

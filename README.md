@@ -14,6 +14,7 @@ Run: `npm i -g tinybuild` the `npm start` or `tinybuild`
 
 ![cap](./Capture.PNG)
 ![cap2](./Capture2.PNG)
+![cap3](./Capture3.PNG)
 
 
 # Usage

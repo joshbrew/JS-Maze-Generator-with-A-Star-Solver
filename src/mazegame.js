@@ -32,7 +32,6 @@ export class MazeGame {
         this.maze.setPlayer(this.maze.start.x, this.maze.start.y, 0, playerColor);
         this.maze.onWin = () => {
           if(this.racing) this.stopRace();
-          this.maze.handleWin();
         }
 
         this.maze.draw(this.context,this.cellSize,this.strokeStyle);
