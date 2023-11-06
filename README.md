@@ -2,7 +2,15 @@
 
 Interactive maze generator with start/end goals, multiple players, an A* solver for pathfinding.
 
-Comes with playable Depth-First and Hunt and Kill generator examples and generally neatly organized classes and explanatory comments.
+Maze examples:
+- Depth First Search
+- Hunt & Kill
+- Depth First with random path joining (easy mode)
+- Sidewinder
+- Ellers
+- Hunt & Kill with Braids
+
+Also a simple BabylonJS render with instanced static meshes. Needs to be threaded with better culling for actual use. 
 
 Lots of comments in the code for explaining.
 

@@ -43,7 +43,6 @@ export class Maze {
             for(const key in this.players) {
                 this.visitedCells[key] = [];
                 this.players[key].cell = this.start;
-                this.players[key].cell = this.end;
                 
                 this.recordVisit(this.players[key].cell, key);  // Record the cell visitation
 
@@ -229,6 +228,25 @@ export class Maze {
         this.setEnd(endX, endY);
     }
 
+    connect(cell1, cell2) {
+        cell1.connect(cell2);
+    }
+
+    //removes any 3 or 4-sided cells
+    removeDeadEnds = function() {
+        this.cells.forEach(row => {
+            row.forEach((cell) => {
+                if (cell.isDeadEnd()) {
+                    let neighbors = this.getVisitedNeighbors(cell);
+                    if(neighbors.length < 1) neighbors = this.getUnvisitedNeighbors(cell);
+                    // Randomly select a neighbor to connect to and remove the wall
+                    const neighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+                    this.connect(cell, neighbor);
+                }
+            });
+        });
+    };
+
     // Method to add a new player to the maze
     addPlayer(
         x=this.start.x, y=this.start.y, 
@@ -389,6 +407,8 @@ export class Maze {
     }
 }
 
+let wallKeys = ['top', 'right', 'bottom', 'left'];
+
 //object representation of a maze cell in an xy grid
 export class MazeCell {
     x; y; 
@@ -397,6 +417,7 @@ export class MazeCell {
 
       // All cells start with all walls intact
     walls = { top: true, right: true, bottom: true, left: true };
+    
     // Constructor to initialize a cell at (x, y) coordinates
     constructor(x, y) {
       // Storing the x and y coordinates
@@ -438,34 +459,9 @@ export class MazeCell {
       this.visited = true;
       cell.visited = true;
     }
-  
-    // Method to draw the cell and its walls on a canvas context
-    draw(context, size) {
-      // If the cell is marked as the start or end, fill it with a color
-      if (this.isStart || this.isEnd) {
-        context.fillStyle = this.isStart ? 'green' : this.isEnd ? 'red' : 'blue';
-        context.fillRect(this.x * size, this.y * size, size, size);
-      }
-  
-      // Drawing the walls of the cell
-      context.beginPath();
-      if (this.walls.top) {
-        context.moveTo(this.x * size, this.y * size);
-        context.lineTo((this.x + 1) * size, this.y * size);
-      }
-      if (this.walls.right) {
-        context.moveTo((this.x + 1) * size, this.y * size);
-        context.lineTo((this.x + 1) * size, (this.y + 1) * size);
-      }
-      if (this.walls.bottom) {
-        context.moveTo((this.x + 1) * size, (this.y + 1) * size);
-        context.lineTo(this.x * size, (this.y + 1) * size);
-      }
-      if (this.walls.left) {
-        context.moveTo(this.x * size, (this.y + 1) * size);
-        context.lineTo(this.x * size, this.y * size);
-      }
-      context.stroke();
+
+    hasAllWalls() {
+        return this.walls.top && this.walls.right && this.walls.bottom && this.walls.left;
     }
   
     // Method to mark this cell as the starting point
@@ -488,12 +484,46 @@ export class MazeCell {
       this.isPath = false;
     }
   
+    isDeadEnd() {
+        return wallKeys.filter((k) => this.walls[k]).length > 2;
+    }
+
     // Method to reset the cell's special states (start, end, path)
     reset() {
       this.isStart = false;
       this.isEnd = false;
       this.clearPath();
     }
-  }
+
+    // Method to draw the cell and its walls on a canvas context
+    draw(context, size) {
+        // If the cell is marked as the start or end, fill it with a color
+        if (this.isStart || this.isEnd) {
+          context.fillStyle = this.isStart ? 'green' : this.isEnd ? 'red' : 'blue';
+          context.fillRect(this.x * size, this.y * size, size, size);
+        }
+    
+        // Drawing the walls of the cell
+        context.beginPath();
+        if (this.walls.top) {
+          context.moveTo(this.x * size, this.y * size);
+          context.lineTo((this.x + 1) * size, this.y * size);
+        }
+        if (this.walls.right) {
+          context.moveTo((this.x + 1) * size, this.y * size);
+          context.lineTo((this.x + 1) * size, (this.y + 1) * size);
+        }
+        if (this.walls.bottom) {
+          context.moveTo((this.x + 1) * size, (this.y + 1) * size);
+          context.lineTo(this.x * size, (this.y + 1) * size);
+        }
+        if (this.walls.left) {
+          context.moveTo(this.x * size, (this.y + 1) * size);
+          context.lineTo(this.x * size, this.y * size);
+        }
+        context.stroke();
+    }
+    
+}
 
 

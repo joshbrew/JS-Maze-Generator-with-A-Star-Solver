@@ -54,7 +54,7 @@ export class MazeGame {
             let nRows = parseInt(h) ? parseInt(h) : 20;
             this.cellSize = this.canvas.width/(nCellsPerRow > nRows ? nCellsPerRow : nRows); //assume square
 
-            this.maze.reset();
+            this.maze.reset(false);
             this.maze.generateMaze(nCellsPerRow,nRows);
             this.maze.draw(this.context, this.cellSize, this.strokeStyle);
         }
