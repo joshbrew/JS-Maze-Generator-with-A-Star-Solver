@@ -87,6 +87,24 @@ export class Maze {
         return null;
     }
       
+    getNeighbors(cell) {
+        const neighbors = [];
+        const x = cell.x;
+        const y = cell.y;
+        
+        // Iterate over all possible directions
+        for (const key in this.directions) {
+            const { dx, dy } = this.directions[key];
+            const neighbor = this.getCell(x + dx, y + dy);
+            
+            // Add the neighbor to the list if it exists and has not been visited
+            if (neighbor) {
+                neighbors.push(neighbor);
+            }
+        }
+        return neighbors;
+    }
+
     getUnvisitedNeighbors(cell) {
         const neighbors = [];
         const x = cell.x;
@@ -233,18 +251,108 @@ export class Maze {
     }
 
     //removes any 3 or 4-sided cells
-    removeDeadEnds = function() {
-        this.cells.forEach(row => {
-            row.forEach((cell) => {
-                if (cell.isDeadEnd()) {
-                    let neighbors = this.getVisitedNeighbors(cell);
-                    if(neighbors.length < 1) neighbors = this.getUnvisitedNeighbors(cell);
-                    // Randomly select a neighbor to connect to and remove the wall
-                    const neighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
-                    this.connect(cell, neighbor);
+    removeDeadEnds = function(fromCenter=false) { //fromCenter will create a spiral pattern and remove center cells
+
+        if(fromCenter) {
+            // Find the center of the maze
+            const centerX = Math.floor(this.cells[0].length / 2);
+            const centerY = Math.floor(this.cells.length / 2);
+
+            // Calculate the maximum distance from the center to any corner
+            const maxDistance = Math.max(centerX, this.cells[0].length - centerX - 1, centerY, this.cells.length - centerY - 1);
+
+
+            // Initialize a connected set that contains the coordinates of the central cell(s)
+            let connected = new Set();
+
+            if (this.cells.length % 2 === 0 && this.cells[0].length % 2 === 0) {
+                // Even dimensions: add the center 4 cells coordinates as strings "x,y"
+                connected.add(`${centerX},${centerY}`);
+                connected.add(`${centerX-1},${centerY}`);
+                connected.add(`${centerX},${centerY-1}`);
+                connected.add(`${centerX-1},${centerY-1}`);
+            } else {
+                // Odd dimensions: add the central cell coordinates as a string "x,y"
+                connected.add(`${centerX},${centerY}`);
+            }
+
+            // Spiral coordinates generator
+            function* spiral(xCenter, yCenter, maxDist) { //generator function
+                yield [xCenter, yCenter];
+                for (let layer = 1; layer <= maxDist; layer++) {
+                    let x = xCenter + layer;
+                    let y = yCenter - layer;
+                    for (; y <= yCenter + layer; y++) yield [x, y];
+                    for (x -= 1, y -= 1; x >= xCenter - layer; x--) yield [x, y];
+                    for (x += 1, y -= 1; y >= yCenter - layer; y--) yield [x, y];
+                    for (x += 1, y += 1; x <= xCenter + layer; x++) yield [x, y];
                 }
+            }
+
+            // Iterate over the cells in a spiral pattern from the center
+            for (let [x, y] of spiral(centerX, centerY, maxDistance)) {
+                // Ensure x and y are within bounds
+                if (x >= 0 && x < this.cells[0].length && y >= 0 && y < this.cells.length) {
+                    const cell = this.cells[y][x];
+                    if (cell.isDeadEnd()) {
+                        let neighbors = this.getVisitedNeighbors(cell);
+                        if(neighbors.length < 1) neighbors = this.getUnvisitedNeighbors(cell);
+                        // Randomly select a neighbor to connect to and remove the wall
+                        // Filter neighbors to ensure they keep the path to the center
+                        neighbors = neighbors.filter(neighbor => {
+                            const key = `${neighbor.x},${neighbor.y}`;
+                            return connected.has(key) || neighbors.some(n => connected.has(`${n.x},${n.y}`));
+                        });
+
+                        if (neighbors.length > 0) {
+                            // Connect to one of the neighbors that maintains the path to the center
+                            const neighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+                            this.connect(cell, neighbor);
+                            // Add the new cell to the connected set
+                            connected.add(`${x},${y}`);
+                        }
+                    }
+                }
+            }
+
+            // Connect the center cells
+            if (this.cells.length % 2 === 0 && this.cells[0].length % 2 === 0) {
+                // Even dimensions: connect the center 4 cells
+                const centers = [
+                [centerX, centerY],
+                [centerX - 1, centerY],
+                [centerX, centerY - 1],
+                [centerX - 1, centerY - 1]
+                ];
+                centers.forEach(([x, y]) => {
+                    this.cells[y][x].visited = true;
+                    this.getNeighbors(this.cells[y][x]).forEach(neighbor => {
+                        this.connect(this.cells[y][x], neighbor);
+                    });
+                });
+            } else {
+                // Odd dimensions: make sure the central cell is connected
+                const centerCell = this.cells[centerY][centerX];
+                centerCell.visited = true;
+                this.getNeighbors(centerCell).forEach(neighbor => {
+                    this.connect(centerCell, neighbor);
+                });
+            }
+
+        }
+        else {
+            this.cells.forEach(row => {
+                row.forEach((cell) => {
+                    if (cell.isDeadEnd()) {
+                        let neighbors = this.getVisitedNeighbors(cell);
+                        if(neighbors.length < 1) neighbors = this.getUnvisitedNeighbors(cell);
+                        // Randomly select a neighbor to connect to and remove the wall
+                        const neighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+                        this.connect(cell, neighbor);
+                    }
+                });
             });
-        });
+        }
     };
 
     // Method to add a new player to the maze

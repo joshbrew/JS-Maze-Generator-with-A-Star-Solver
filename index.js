@@ -11,7 +11,7 @@ import {
   generateSidewinderMaze,
   generateEllersMaze,
   generateHuntAndKillWithBraidsMaze,
-  noDeadEnds
+  noDeadEnds, noDeadEndsSpiral
 } from "./src/generators";
 
 import * as BABYLON from 'babylonjs'
@@ -124,6 +124,7 @@ generateMazeUI('Sidewinder', generateSidewinderMaze, 20, 20);
 generateMazeUI('Ellers', generateEllersMaze, 20, 20);
 generateMazeUI('Hunt & Kill w/ Braids', generateHuntAndKillWithBraidsMaze, 20, 20);
 generateMazeUI('No Dead Ends', noDeadEnds, 20, 20); 
+generateMazeUI('Spiraling', noDeadEndsSpiral, 100, 100); 
 // Add more calls to `generateMazeUI` for additional mazes as needed.
 
 //setup key events

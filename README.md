@@ -9,7 +9,8 @@ Maze examples:
 - Sidewinder
 - Ellers
 - Hunt & Kill with Braids
-- Removing random dead ends till no more 3 or 4 sided cells.
+- Remove random dead ends till no more 3 or 4 sided cells.
+- Remove random dead ends in a spiral from the center (always solvable).
 
 Also a simple BabylonJS render with instanced static meshes. Needs to be threaded with better culling for actual use. 
 
@@ -24,6 +25,7 @@ Run: `npm i -g tinybuild` the `npm start` or `tinybuild`
 ![cap](./Capture.PNG)
 ![cap2](./Capture2.PNG)
 ![cap3](./Capture3.PNG)
+![cap4](./Capture4.PNG)
 
 
 # Usage

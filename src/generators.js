@@ -341,45 +341,12 @@ export function generateHuntAndKillWithBraidsMaze(maze) {
     return maze; // Return the modified maze
 }
 
-
-export function generateOrthogonalMaze(maze) {
-    const stack = [];
-    const startCell = maze.getCell(0, 0);
-    startCell.visited = true;
-    stack.push(startCell);
-  
-    while (stack.length > 0) {
-      const currentCell = stack[stack.length - 1]; // Peek at the top of the stack without popping
-      const unvisitedNeighbors = maze.getUnvisitedNeighbors(currentCell);
-  
-      if (unvisitedNeighbors.length > 0) {
-        // Randomly select one of the unvisited neighboring cells
-        const randomNeighbor = unvisitedNeighbors[Math.floor(Math.random() * unvisitedNeighbors.length)];
-        randomNeighbor.visited = true;
-  
-        // Remove the walls between the current cell and the selected neighbor
-        maze.connect(currentCell, randomNeighbor);
-  
-        // Add the neighbor to the stack to continue the path from that neighbor
-        stack.push(randomNeighbor);
-      } else {
-        // Pop the current cell off the stack when it has no unvisited neighbors
-        stack.pop();
-  
-        // Occasionally backtrack a few steps, not just one
-        if (Math.random() < 0.1 && stack.length > 1) { // 10% chance to backtrack more than one step
-          const backtrackSteps = Math.floor(Math.random() * (stack.length - 1));
-          stack.splice(stack.length - backtrackSteps, backtrackSteps);
-        }
-      }
-    }
-  
-    // Optionally, remove some dead-ends to create alternative paths and loops
-    //maze.removeDeadEnds();
-  
-    return maze;
-} 
-
 export function noDeadEnds(maze) {
     maze.removeDeadEnds();
 }
+
+export function noDeadEndsSpiral(maze) {
+    maze.removeDeadEnds(true);
+}
+
+
