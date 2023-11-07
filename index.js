@@ -22,7 +22,9 @@ function generateMazeUI(
   generatorFunction, 
   cellsPerRow, 
   rows,
-  use3D=false
+  use3D=false,
+  drawFiddleHeads=false, 
+  strokeStyle
 ) {
   // Generate unique identifiers for DOM elements
   const uniqueId = Math.random().toString(36).substring(2, 9);
@@ -49,9 +51,10 @@ function generateMazeUI(
   `);
 
   // Set up the maze, the solver, and the game logic for this maze game
-  const maze = new Maze(cellsPerRow, rows, generatorFunction);
+  const maze = new Maze(cellsPerRow, rows, generatorFunction); 
+  if(drawFiddleHeads) maze.drawFiddleHeads = drawFiddleHeads;
   const aStarSolver = new AStarSolver(maze);
-  const mazeGame = new MazeGame(maze, `canvas-${uniqueId}`, aStarSolver);
+  const mazeGame = new MazeGame(maze, `canvas-${uniqueId}`, aStarSolver, strokeStyle);
 
   // Set up the input events for the AI and maze generator
   mazeGame.setAIInputEvents(`${mazeType}intv-${uniqueId}`, `${mazeType}solve-${uniqueId}`, `${mazeType}race-${uniqueId}`);
@@ -117,13 +120,13 @@ function generateMazeUI(
 }
 
 // Example usage
-generateMazeUI('Depth First', generateDepthFirstMaze, 20, 20);
-generateMazeUI('Hunt & Kill', generateHuntAndKillMaze, 20, 20, true);
+generateMazeUI('Depth First', generateDepthFirstMaze, 20, 20, false);
+generateMazeUI('Hunt & Kill', generateHuntAndKillMaze, 20, 20, true, undefined, 'darkred');
 generateMazeUI('Depth First Multipath', generateMultiPathDepthFirstMaze, 20, 20);
 generateMazeUI('Sidewinder', generateSidewinderMaze, 20, 20);
 generateMazeUI('Ellers', generateEllersMaze, 20, 20);
 generateMazeUI('Hunt & Kill w/ Braids', generateHuntAndKillWithBraidsMaze, 20, 20);
-generateMazeUI('No Dead Ends', noDeadEnds, 20, 20); 
+generateMazeUI('No Dead Ends', noDeadEnds, 20, 20, false, true, 'brown'); 
 generateMazeUI('Spiraling', noDeadEndsSpiral, 100, 100); 
 // Add more calls to `generateMazeUI` for additional mazes as needed.
 

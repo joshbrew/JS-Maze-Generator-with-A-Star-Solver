@@ -22,10 +22,11 @@ With latest NodeJS LTS installed. Open this folder in the command line (e.g. via
 
 Run: `npm i -g tinybuild` the `npm start` or `tinybuild`
 
-![cap](./Capture.PNG)
-![cap2](./Capture2.PNG)
-![cap3](./Capture3.PNG)
-![cap4](./Capture4.PNG)
+![cap](./screenshots/Capture.PNG)
+![cap2](./screenshots/Capture2.PNG)
+![cap3](./screenshots/Capture3.PNG)
+![cap4](./screenshots/Capture4.PNG)
+![cap5](./screenshots/Capture5.PNG)
 
 
 # Usage

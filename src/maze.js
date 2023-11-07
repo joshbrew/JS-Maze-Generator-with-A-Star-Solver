@@ -1,5 +1,26 @@
 
+// A simple seedable random number generator
+class SeededRandom {
+    constructor(seed) {
+      this.seed = seed;
+      this.initialSeed = seed;
+    }
+  
+    reset() {
+      this.seed = this.initialSeed;
+    }
+  
+    random() {
+      const x = Math.sin(this.seed++) * 10000;
+      return x - Math.floor(x);
+    }
+  }
+  
+
+
 export class Maze {
+
+    seed = new SeededRandom(Date.now()*0.001);
 
     directions = {
         left: { dx: -1, dy: 0 },
@@ -15,6 +36,8 @@ export class Maze {
     playerPathLength = 10; //e.g. store the last 10 visited cells
 
     playerDirections = [['bottom', 'left'], ['top', 'right']];
+
+    drawFiddleHeads = false;
 
     constructor(width, height, generateMazeFunction, onWin) {
         this.generateMaze(width,height,generateMazeFunction, onWin);
@@ -459,10 +482,10 @@ export class Maze {
     }
 
     draw(context, size, strokeStyle='blue', drawPlayerPaths=true) {
+        this.seed.reset();
+
         context.clearRect(0, 0, context.canvas.width, context.canvas.height);
-        context.strokeStyle = strokeStyle;
-        context.beginPath();
-    
+
         // Draw color trails first
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
@@ -470,9 +493,7 @@ export class Maze {
                 
                 for (const playerIndex in this.players) {
                     const player = this.players[playerIndex];
-                    
                     if (drawPlayerPaths && this.visitedCells[playerIndex]) {
-
                         const visitedIndex = [...this.visitedCells[playerIndex]].reverse().findIndex(v => v.cell === cell);
                         if (visitedIndex !== -1 && cell !== player.currentCell) {
                             const alpha = cell === player.cell ? 1 : 0.6 - (this.visitedCells[playerIndex].length - (this.visitedCells[playerIndex].length - visitedIndex)) / this.visitedCells[playerIndex].length;
@@ -483,27 +504,16 @@ export class Maze {
                             context.fillRect(cell.x * size, cell.y * size, size, size);
                         }
                     }
+                    cell.draw(
+                        context, 
+                        size, 
+                        this.drawFiddleHeads, 
+                        this.seed, 
+                        strokeStyle
+                    );
                 }
             }
         }
-    
-        // Next, draw all cells (including player cells)
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                const cell = this.cells[y][x];
-                cell.draw(context, size);
-            }
-        }
-    
-        // Finally, ensure player cells are drawn on top
-        for (const playerIndex in this.players) {
-            const player = this.players[playerIndex];
-            if (player.currentCell) {
-                player.currentCell.draw(context, size);
-            }
-        }
-    
-        context.stroke();
     }
 
     replaceAlphaInRgba(rgbaString, newAlpha) {
@@ -604,34 +614,136 @@ export class MazeCell {
     }
 
     // Method to draw the cell and its walls on a canvas context
-    draw(context, size) {
+    draw(context, size, fiddleheads = false, seed, strokeStyle='blue') {
         // If the cell is marked as the start or end, fill it with a color
         if (this.isStart || this.isEnd) {
           context.fillStyle = this.isStart ? 'green' : this.isEnd ? 'red' : 'blue';
           context.fillRect(this.x * size, this.y * size, size, size);
         }
-    
-        // Drawing the walls of the cell
-        context.beginPath();
-        if (this.walls.top) {
-          context.moveTo(this.x * size, this.y * size);
-          context.lineTo((this.x + 1) * size, this.y * size);
+
+        if(fiddleheads) { //just a joke feature
+            if (this.walls.top) {
+                drawWallWithSpirals(context, size, this.x * size, this.y * size, (this.x + 1) * size, this.y * size, 'top', seed, strokeStyle);
+            }
+            if (this.walls.right) {
+                drawWallWithSpirals(context, size, (this.x + 1) * size, this.y * size, (this.x + 1) * size, (this.y + 1) * size, 'right', seed, strokeStyle);
+            }
+            if (this.walls.bottom) {
+                drawWallWithSpirals(context, size, (this.x + 1) * size, (this.y + 1) * size, this.x * size, (this.y + 1) * size, 'bottom', seed, strokeStyle);
+            }
+            if (this.walls.left) {
+                drawWallWithSpirals(context, size, this.x * size, (this.y + 1) * size, this.x * size, this.y * size, 'left', seed, strokeStyle);
+            }
         }
-        if (this.walls.right) {
-          context.moveTo((this.x + 1) * size, this.y * size);
-          context.lineTo((this.x + 1) * size, (this.y + 1) * size);
+        else {
+            // Drawing the walls of the cell
+            context.strokeStyle = strokeStyle;
+            context.beginPath();
+            if (this.walls.top) {
+                context.moveTo(this.x * size, this.y * size);
+                context.lineTo((this.x + 1) * size, this.y * size);
+            }
+            if (this.walls.right) {
+                context.moveTo((this.x + 1) * size, this.y * size);
+                context.lineTo((this.x + 1) * size, (this.y + 1) * size);
+            }
+            if (this.walls.bottom) {
+                context.moveTo((this.x + 1) * size, (this.y + 1) * size);
+                context.lineTo(this.x * size, (this.y + 1) * size);
+            }
+            if (this.walls.left) {
+                context.moveTo(this.x * size, (this.y + 1) * size);
+                context.lineTo(this.x * size, this.y * size);
+            }
+            context.stroke();
         }
-        if (this.walls.bottom) {
-          context.moveTo((this.x + 1) * size, (this.y + 1) * size);
-          context.lineTo(this.x * size, (this.y + 1) * size);
-        }
-        if (this.walls.left) {
-          context.moveTo(this.x * size, (this.y + 1) * size);
-          context.lineTo(this.x * size, this.y * size);
-        }
-        context.stroke();
     }
     
 }
 
+const randomNumSpirals = (seed) => Math.floor(seed.random() * 5) + 1; // Random number of spirals, between 1 and 6
+
+// Function to draw spirals at each wall if it exists
+function drawWallWithSpirals (context, size, fromX, fromY, toX, toY, direction, seed, strokeStyle) {
+    context.strokeStyle = strokeStyle ? strokeStyle : 'blue'
+    context.beginPath();
+    context.moveTo(fromX, fromY);
+    context.lineTo(toX, toY);
+    context.stroke();
+    
+
+    let numSpirals = randomNumSpirals(seed);
+    for (let i = 0; i < numSpirals; i++) {
+        // Calculate a random position along the wall for the spiral
+        let posAlongWall = seed.random();
+        let spiralStartX = fromX + (toX - fromX) * posAlongWall;
+        let spiralStartY = fromY + (toY - fromY) * posAlongWall;
+        
+        // Scale the size of the spiral to the wall size
+        let spiralSize = size * 0.1; // Adjust the 0.1 to scale the spirals bigger or smaller
+        let spiralTurns = 1; // Adjust the number of turns for the spiral
+    
+        drawSpiral(context, spiralStartX, spiralStartY, spiralSize, spiralTurns, direction, seed);
+    }
+};
+
+function drawSpiral(context, startX, startY, size, turns, wallOrientation, seed, strokeStyle='green') {
+    let initialRadius = size * 0.02; // Start with a small radius
+    let radiusIncrement = size * 0.04; // Increment rate for the radius
+    let angleIncrement = Math.PI / (turns * 12); // Base increment for the angle
+    let totalTurns = turns * 12 * 6; // Total number of iterations for the spiral
+
+    // Determine the starting angle based on the wall orientation
+    let startAngle;
+    switch (wallOrientation) {
+        case 'top':
+            startAngle = -Math.PI / 2;
+            break;
+        case 'right':
+            startAngle = 0;
+            break;
+        case 'bottom':
+            startAngle = Math.PI / 2;
+            break;
+        case 'left':
+            startAngle = Math.PI;
+            break;
+        default:
+            startAngle = 0; // Default to right direction if orientation is undefined
+    }
+
+    // Calculate the ending angle and radius
+    let endAngle = startAngle + totalTurns * angleIncrement;
+    let endRadius = initialRadius + totalTurns * radiusIncrement;
+
+    // Offset position will be directly to the left of the ending position for a fiddlehead effect
+    let offsetX = startX - endRadius * Math.cos(startAngle);
+    let offsetY = startY - endRadius * Math.sin(startAngle);
+
+    context.strokeStyle = strokeStyle;
+    context.beginPath();
+
+    // Adjust the angle to point towards the end position for the first segment
+    let angle = startAngle; // Rotate the start angle by 90 degrees counter-clockwise
+    let radius = initialRadius;
+
+    // Move to the start of the spiral, not the end
+    let initialX = offsetX + radius * Math.cos(angle);
+    let initialY = offsetY + radius * Math.sin(angle);
+    context.moveTo(initialX, initialY);
+
+    for (let i = 0; i < totalTurns; i++) {
+        // Increase the radius as we spiral out
+        radius += radiusIncrement;
+        // Add randomness to the angle increment
+        angle += angleIncrement + (seed.random() - 0.5) * (angleIncrement * 0.2);
+
+        let x = offsetX + radius * Math.cos(angle);
+        let y = offsetY + radius * Math.sin(angle);
+        context.lineTo(x, y);
+    }
+
+    context.lineWidth = 1;
+    context.stroke();
+}
 
