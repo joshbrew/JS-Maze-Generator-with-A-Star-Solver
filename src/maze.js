@@ -35,7 +35,7 @@ export class Maze {
     visitedCells = {};// Rolling buffer to store the last 10 visited cells
     playerPathLength = 10; //e.g. store the last 10 visited cells
 
-    playerDirections = [['bottom', 'left'], ['top', 'right']];
+    playerDirections = [['down', 'left'], ['up', 'right']];
 
     drawFiddleHeads = false;
 
@@ -90,9 +90,9 @@ export class Maze {
         
     getWallDirection(dx, dy) {
         // Translate directional changes into wall directions
-        if (dx === 0 && dy === -1) return 'top';
+        if (dx === 0 && dy === -1) return 'up';
         if (dx === 1 && dy === 0) return 'right';
-        if (dx === 0 && dy === 1) return 'bottom';
+        if (dx === 0 && dy === 1) return 'down';
         if (dx === -1 && dy === 0) return 'left';
         
         // Return null if the input doesn't match any known direction.
@@ -126,6 +126,20 @@ export class Maze {
             }
         }
         return neighbors;
+    }
+
+
+    //get a neighbor in a specific direction, if any
+    getNeighbor(cell, direction) {
+        const x = cell.x;
+        const y = cell.y;
+        if(!this.directions[direction]) return;
+        const { dx, dy } = this.directions[direction];
+        const neighbor = this.getCell(x + dx, y + dy);
+        
+        if (neighbor) {
+            return neighbor;
+        }
     }
 
     getUnvisitedNeighbors(cell) {
@@ -191,8 +205,8 @@ export class Maze {
         switch (direction) {
           case 'left': return 'right';
           case 'right': return 'left';
-          case 'up': return 'bottom';
-          case 'down': return 'top';
+          case 'up': return 'down';
+          case 'down': return 'up';
           default: return null;
         }
     }
@@ -207,6 +221,32 @@ export class Maze {
     setEnd(x, y) {
         this.end = this.getCell(x, y);
         this.end.setEnd();
+    }
+
+    //connect all neighbors
+    connectNeighbors(cell,direction) {
+        if(direction) {
+            let neighbor = this.getNeighbor(cell,direction);
+            if(neighbor) cell.connect(neighbor);
+        } else {
+            let neighbors = this.getNeighbors(cell);
+            neighbors.forEach((n) => {
+                cell.connect(n);
+            });
+        }
+    }
+
+    //connect all neighbors
+    disconnectNeighbors(cell,direction) {
+        if(direction) {
+            let neighbor = this.getNeighbor(cell,direction);
+            if(neighbor) cell.disconnect(neighbor);
+        } else {
+            let neighbors = this.getNeighbors(cell);
+            neighbors.forEach((n) => {
+                cell.disconnect(n);
+            });
+        }
     }
 
     // Method to reset the maze
@@ -229,15 +269,15 @@ export class Maze {
     //set start/end posts along different edges. Doesn't guarantee they aren't nearby.
     setRandomStartAndEnd() {
         // Set a random starting point
-        const startEdge = Math.floor(Math.random() * 4); // 0: top, 1: right, 2: bottom, 3: left
+        const startEdge = Math.floor(Math.random() * 4); // 0: up, 1: right, 2: down, 3: left
         let startX, startY;
-        if (startEdge === 0) { // top
+        if (startEdge === 0) { // up
             startX = Math.floor(Math.random() * this.width);
             startY = 0;
         } else if (startEdge === 1) { // right
             startX = this.width - 1;
             startY = Math.floor(Math.random() * this.height);
-        } else if (startEdge === 2) { // bottom
+        } else if (startEdge === 2) { // down
             startX = Math.floor(Math.random() * this.width);
             startY = this.height - 1;
         } else { // left
@@ -253,13 +293,13 @@ export class Maze {
         } while (endEdge === startEdge); // Ensure the end edge is different from the start edge
         
         let endX, endY;
-        if (endEdge === 0) { // top
+        if (endEdge === 0) { // up
             endX = Math.floor(Math.random() * this.width);
             endY = 0;
         } else if (endEdge === 1) { // right
             endX = this.width - 1;
             endY = Math.floor(Math.random() * this.height);
-        } else if (endEdge === 2) { // bottom
+        } else if (endEdge === 2) { // down
             endX = Math.floor(Math.random() * this.width);
             endY = this.height - 1;
         } else { // left
@@ -525,7 +565,7 @@ export class Maze {
     }
 }
 
-let wallKeys = ['top', 'right', 'bottom', 'left'];
+let wallKeys = ['up', 'right', 'down', 'left'];
 
 //object representation of a maze cell in an xy grid
 export class MazeCell {
@@ -534,7 +574,7 @@ export class MazeCell {
     visited = false; // A flag to indicate whether this cell has been visited during maze generation
 
       // All cells start with all walls intact
-    walls = { top: true, right: true, bottom: true, left: true };
+    walls = { up: true, right: true, down: true, left: true };
     
     // Constructor to initialize a cell at (x, y) coordinates
     constructor(x, y) {
@@ -550,36 +590,69 @@ export class MazeCell {
       if (this.y === cell.y) {
         // If this cell is to the right of the other cell
         if (this.x > cell.x) {
-          this.walls.left = false;
-          cell.walls.right = false;
+            this.walls.left = false;
+            cell.walls.right = false;
         }
         // If this cell is to the left of the other cell
         else if (this.x < cell.x) {
-          this.walls.right = false;
-          cell.walls.left = false;
+            this.walls.right = false;
+            cell.walls.left = false;
         }
       }
       // If the cells are in the same column
       else if (this.x === cell.x) {
         // If this cell is below the other cell
         if (this.y > cell.y) {
-          this.walls.top = false;
-          cell.walls.bottom = false;
+            this.walls.up = false;
+            cell.walls.down = false;
         }
         // If this cell is above the other cell
         else if (this.y < cell.y) {
-          this.walls.bottom = false;
-          cell.walls.top = false;
+            this.walls.down = false;
+            cell.walls.up = false;
         }
       }
   
-      // Mark both cells as visited
+      // Mark both cells as visited (for generating)
       this.visited = true;
       cell.visited = true;
     }
 
+    disconnect(cell) {
+        // If the cells are in the same row
+        if (this.y === cell.y) {
+            // If this cell is to the right of the other cell
+            if (this.x > cell.x) {
+                this.walls.left = true;
+                cell.walls.right = true;
+            }
+            // If this cell is to the left of the other cell
+            else if (this.x < cell.x) {
+                this.walls.right = true;
+                cell.walls.left = true;
+            }
+        }
+        // If the cells are in the same column
+        else if (this.x === cell.x) {
+            // If this cell is below the other cell
+            if (this.y > cell.y) {
+                this.walls.up = true;
+                cell.walls.down = true;
+            }
+            // If this cell is above the other cell
+            else if (this.y < cell.y) {
+                this.walls.down = true;
+                cell.walls.up = true;
+            }
+        }
+
+        // Mark both cells as visited (for generating)
+        this.visited = true;
+        cell.visited = true;
+    }
+
     hasAllWalls() {
-        return this.walls.top && this.walls.right && this.walls.bottom && this.walls.left;
+        return this.walls.up && this.walls.right && this.walls.down && this.walls.left;
     }
   
     // Method to mark this cell as the starting point
@@ -622,14 +695,14 @@ export class MazeCell {
         }
 
         if(fiddleheads) { //just a joke feature
-            if (this.walls.top) {
-                drawWallWithSpirals(context, size, this.x * size, this.y * size, (this.x + 1) * size, this.y * size, 'top', seed, strokeStyle);
+            if (this.walls.up) {
+                drawWallWithSpirals(context, size, this.x * size, this.y * size, (this.x + 1) * size, this.y * size, 'up', seed, strokeStyle);
             }
             if (this.walls.right) {
                 drawWallWithSpirals(context, size, (this.x + 1) * size, this.y * size, (this.x + 1) * size, (this.y + 1) * size, 'right', seed, strokeStyle);
             }
-            if (this.walls.bottom) {
-                drawWallWithSpirals(context, size, (this.x + 1) * size, (this.y + 1) * size, this.x * size, (this.y + 1) * size, 'bottom', seed, strokeStyle);
+            if (this.walls.down) {
+                drawWallWithSpirals(context, size, (this.x + 1) * size, (this.y + 1) * size, this.x * size, (this.y + 1) * size, 'down', seed, strokeStyle);
             }
             if (this.walls.left) {
                 drawWallWithSpirals(context, size, this.x * size, (this.y + 1) * size, this.x * size, this.y * size, 'left', seed, strokeStyle);
@@ -639,7 +712,7 @@ export class MazeCell {
             // Drawing the walls of the cell
             context.strokeStyle = strokeStyle;
             context.beginPath();
-            if (this.walls.top) {
+            if (this.walls.up) {
                 context.moveTo(this.x * size, this.y * size);
                 context.lineTo((this.x + 1) * size, this.y * size);
             }
@@ -647,7 +720,7 @@ export class MazeCell {
                 context.moveTo((this.x + 1) * size, this.y * size);
                 context.lineTo((this.x + 1) * size, (this.y + 1) * size);
             }
-            if (this.walls.bottom) {
+            if (this.walls.down) {
                 context.moveTo((this.x + 1) * size, (this.y + 1) * size);
                 context.lineTo(this.x * size, (this.y + 1) * size);
             }
@@ -696,13 +769,13 @@ function drawSpiral(context, startX, startY, size, turns, wallOrientation, seed,
     // Determine the starting angle based on the wall orientation
     let startAngle;
     switch (wallOrientation) {
-        case 'top':
+        case 'up':
             startAngle = -Math.PI / 2;
             break;
         case 'right':
             startAngle = 0;
             break;
-        case 'bottom':
+        case 'down':
             startAngle = Math.PI / 2;
             break;
         case 'left':

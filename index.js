@@ -321,11 +321,11 @@ async function setupBabylonJS(maze, canvasId, fpsdivId, genbuttonId) {
         instance.isVisible = true;
         shadowMap.renderList.push(instance)
       switch (direction) {
-        case 'top':
+        case 'up':
           instance.position = new BABYLON.Vector3(cell.x * cellSize - cellOffset, cellOffset, cell.y * cellSize - cellSize);
           instance.rotation.y = Math.PI / 2; // Wall is aligned along the x-axis
           break;
-        case 'bottom':
+        case 'down':
           instance.position = new BABYLON.Vector3(cell.x * cellSize - cellOffset, cellOffset, cell.y * cellSize);
           instance.rotation.y = Math.PI / 2; // Wall is aligned along the x-axis
           break;
