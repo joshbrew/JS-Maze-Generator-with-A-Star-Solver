@@ -36,7 +36,7 @@ export class AStarSolver {
         
         if(start === this.start && end === this.end && this.path.length > 0) return this.path; //just return existing path instead of solving again
         
-        //console.time('astar');
+        console.time('astar');
 
         this.reset();
     
@@ -54,7 +54,7 @@ export class AStarSolver {
 
             if (current === this.end) {
                 this.path = this.reconstructPath(current);
-                //console.timeEnd('astar');
+                console.timeEnd('astar');
                 return this.path;
             }
     
@@ -78,7 +78,7 @@ export class AStarSolver {
                 }
             }
         }
-        //console.timeEnd('astar');
+        console.timeEnd('astar');
         return []; // No path found
     }
         
