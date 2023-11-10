@@ -28,7 +28,8 @@ export class AStarSolver {
         startY = this.maze.start.y,
         endX = this.maze.end.x,
         endY = this.maze.end.y,
-        allowDiagonal = false
+        allowDiagonal = false,
+        maxWaitTicks=5 //maximum wait period before aborting
     ) => {
 
         let start = this.maze.cells[startY][startX];
@@ -48,6 +49,8 @@ export class AStarSolver {
         const closedSet = this.closedSet;
         openSet.push(this.start, this.start.f);
     
+        let waitTicks = 0;
+
         while (!openSet.isEmpty()) {
             let current = openSet.pop();
             closedSet.add(current);
@@ -58,6 +61,7 @@ export class AStarSolver {
                 return this.path;
             }
     
+            let hasValidMove = false;
             for (let neighbor of this.maze.getReachableNeighbors(current)) {
                 if (closedSet.has(neighbor)) continue;
     
@@ -65,6 +69,7 @@ export class AStarSolver {
                 let tempG = current.g + 1;
                 
                 if (!(neighbor.id in openSet.elementIndices) || tempG < neighbor.g) {
+                    hasValidMove = true;
                     neighbor.g = tempG;
                     neighbor.f = tempG + (allowDiagonal ? this.heuristicDiag(neighbor, this.end) : this.heuristicGrid(neighbor, this.end));
                     neighbor.previous = current;
@@ -76,6 +81,13 @@ export class AStarSolver {
                         openSet.update(neighbor, neighbor.f);
                     }
                 }
+            }
+
+            // If no valid move is found, wait in the current cell
+            if (!hasValidMove && waitTicks < maxWaitTicks) {
+                waitTicks++;
+                openSet.push(current, current.f + 1); // Re-add current cell with a higher cost
+                closedSet.delete(current); // Remove current cell from closed set for reconsideration
             }
         }
         console.timeEnd('astar');
@@ -93,12 +105,19 @@ export class AStarSolver {
     }
 
     //todo add rules like, cannotOccupySameCell with path projection
-    solveMultiple(goals, allowDiagonal=false) {
+    solveMultiple(
+        goals, //goals = { agent1:{startX,startY,endX,endY,cannotOccupySameCell}}
+        allowDiagonal=false,
+        maxWaitTicks=5
+    ) {
         
         let starts = {}; let ends = {};
         
         let unfinishedKeys = Object.keys(goals);
         let unfinishedGoals = Object.values(goals);
+
+        let agentHasAvoidanceRule = false;
+        let waitTicks = {};
 
         for(const key in goals) {
             if(!this.openSets[key]) this.openSets[key] = new PriorityQueue();
@@ -112,47 +131,87 @@ export class AStarSolver {
                 delete unfinishedKeys[key];
                 delete unfinishedGoals[key];
             }
+
+            if(!agentHasAvoidanceRule && goals[key].cannotOccupySameCell) agentHasAvoidanceRule = true;
+            waitTicks[key] = 0;
         }
 
         let allEmpty = false;
+        let previouslyOccupiedCells = agentHasAvoidanceRule ? new Set() : undefined; // Set to track previously occupied cells
+        let occupiedCells = agentHasAvoidanceRule ? new Set() : undefined;
 
-        do {
+
+        do { //we are updating everyone on the same step or up till their goal is reached so we can have concurrent planning
+            if(agentHasAvoidanceRule) occupiedCells.clear();
             for (const key of unfinishedKeys) { 
                 if (!this.openSets[key].isEmpty()) {
-    
+                    const goal = goals[key];
                     let current = this.openSets[key].pop();
-    
+
+                    // Update current position for each agent
+                    if(agentHasAvoidanceRule) occupiedCells.add(current);
+
                     if (current === this.end) {
                         this.paths[key] = this.reconstructPath(current);
                         delete unfinishedGoals[key];
                         delete unfinishedKeys[key];
+                        if(unfinishedKeys.length === 0) allEmpty = true;
                         continue;
                     }
     
                     this.closedSets[key].add(current);
     
+                    let hasValidMove = false;
                     for (let neighbor of this.maze.getReachableNeighbors(current, allowDiagonal)) {
                         if (this.closedSets[key].has(neighbor)) continue;
+
+                        if (agentHasAvoidanceRule) {
+                            if (this.closedSets[key].has(neighbor) || (goal.cannotOccupySameCell && occupiedCells.has(neighbor))) 
+                                continue;
+                        }
+
     
-                        neighbor = this.initializeCellMulti(neighbor, undefined, key);
-                        let tempG = current.g + 1;
+                        neighbor = this.initializeCellMulti(neighbor, 0, key);
+                        
+                        const heuristics = neighbor.heuristics[key];
+                        let tempG = heuristics.g + 1;
     
-                        if (!(neighbor.id in this.openSets[key].elementIndices) || tempG < neighbor.g) {
-                            neighbor.g = tempG;
-                            neighbor.f = neighbor.g + (allowDiagonal ? this.heuristicDiag(neighbor, ends[key]) : this.heuristicGrid(neighbor, ends[key]));
-                            neighbor.previous = current;
+                        if (!(neighbor.id in this.openSets[key].elementIndices) || tempG < heuristics.g) {
+                            hasValidMove = true;
+
+                            heuristics.g = tempG;
+                            heuristics.f = heuristics.g + (allowDiagonal ? this.heuristicDiag(neighbor, ends[key]) : this.heuristicGrid(neighbor, ends[key]));
+                            heuristics.previous = current;
+
     
                             if (!(neighbor.id in this.openSets[key].elementIndices)) {
-                                this.openSets[key].push(neighbor, neighbor.f);
+                                this.openSets[key].push(neighbor, heuristics.f);
                             } else {
                                 // Update the priority queue with the new f value
-                                this.openSets[key].update(neighbor, neighbor.f);
+                                this.openSets[key].update(neighbor, heuristics.f);
                             }
                         }
                     }
+
+                    // If no valid move is found, and cannotOccupySameCell rule applies, wait in the current cell
+                    if (!hasValidMove && waitTicks[key] < maxWaitTicks) {
+                        waitTicks[key]++;
+                        //console.log(`agent ${key} is waiting at ${current.x,current.y}`)
+                        this.openSets[key].push(current, current.heuristics[key].f + 1); // Re-add current cell with a higher cost
+                        this.closedSets[key].delete(current); // Remove current cell from closed set for reconsideration
+                    }
+
                 } else {
+                    //console.log(`Goal for ${key} is currently unreachable.`);
                     delete unfinishedGoals[key];
                     delete unfinishedKeys[key];
+                    if(unfinishedKeys.length === 0) allEmpty = true;
+                }
+            }
+            if (agentHasAvoidanceRule) {
+                previouslyOccupiedCells.clear();
+                for (const cell of currentOccupations) {
+                    previouslyOccupiedCells.add(cell);
                 }
             }
         } while (!allEmpty);
