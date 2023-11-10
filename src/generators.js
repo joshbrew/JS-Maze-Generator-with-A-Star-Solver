@@ -1,6 +1,6 @@
 //(hard windy single solution mazes)
 // A simple maze generation function that connects all cells in a grid with Depth-First search. Always solvable.
-export function generateDepthFirstMaze(maze) {
+export function generateDepthFirstMaze(maze, seed) {
     // Initialize a stack to keep track of the path as we traverse through the maze.
     const stack = [];
     
@@ -21,7 +21,7 @@ export function generateDepthFirstMaze(maze) {
         // Check if there are any unvisited neighbors.
         if (unvisitedNeighbors.length > 0) {
             // If there are unvisited neighbors, select one at random.
-            const randomNeighbor = unvisitedNeighbors[Math.floor(Math.random() * unvisitedNeighbors.length)];
+            const randomNeighbor = unvisitedNeighbors[Math.floor(seed.random() * unvisitedNeighbors.length)];
 
             // Mark the selected neighbor as visited.
             randomNeighbor.visited = true;
@@ -45,7 +45,7 @@ export function generateDepthFirstMaze(maze) {
 
 //(easier single-solution mazes)
 //Hunt and kill mazes. Always solvable.
-export function generateHuntAndKillMaze(maze) {
+export function generateHuntAndKillMaze(maze, seed) {
     // Start from the top-left cell of the maze.
     let currentCell = maze.getCell(0, 0);
     currentCell.visited = true; // Mark the starting cell as visited.
@@ -57,7 +57,7 @@ export function generateHuntAndKillMaze(maze) {
         // Check if there are any unvisited neighbors.
         if (neighbors.length > 0) {
             // If there are unvisited neighbors, select one at random.
-            const randomNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+            const randomNeighbor = neighbors[Math.floor(seed.random() * neighbors.length)];
 
             // Connect the current cell to the randomly chosen unvisited neighbor.
             // This step creates pathways in the maze.
@@ -85,7 +85,7 @@ export function generateHuntAndKillMaze(maze) {
                             currentCell = cell;
 
                             // Connect it to a random visited neighbor.
-                            const randomVisitedNeighbor = visitedNeighbors[Math.floor(Math.random() * visitedNeighbors.length)];
+                            const randomVisitedNeighbor = visitedNeighbors[Math.floor(seed.random() * visitedNeighbors.length)];
                             currentCell.connect(randomVisitedNeighbor);
                         }
                     }
@@ -101,7 +101,7 @@ export function generateHuntAndKillMaze(maze) {
 
 //(easy multi-solution mazes)
 // Maze generator that allows for branching and joining paths, creating multiple solutions.
-export function generateMultiPathDepthFirstMaze(maze) {
+export function generateMultiPathDepthFirstMaze(maze, seed) {
     // Initialize the stack to keep track of the path as we traverse the maze.
     const stack = [];
 
@@ -114,7 +114,7 @@ export function generateMultiPathDepthFirstMaze(maze) {
     const mergeWithVisitedNeighbor = (cell) => {
         const visitedNeighbors = maze.getVisitedNeighbors(cell);
         if (visitedNeighbors.length > 0) {
-            const randomVisitedNeighbor = visitedNeighbors[Math.floor(Math.random() * visitedNeighbors.length)];
+            const randomVisitedNeighbor = visitedNeighbors[Math.floor(seed.random() * visitedNeighbors.length)];
             cell.connect(randomVisitedNeighbor);
         }
     };
@@ -125,20 +125,20 @@ export function generateMultiPathDepthFirstMaze(maze) {
         const unvisitedNeighbors = maze.getUnvisitedNeighbors(currentCell);
 
         if (unvisitedNeighbors.length > 0) {
-            const randomNeighbor = unvisitedNeighbors[Math.floor(Math.random() * unvisitedNeighbors.length)];
+            const randomNeighbor = unvisitedNeighbors[Math.floor(seed.random() * unvisitedNeighbors.length)];
             randomNeighbor.visited = true;
             stack.push(randomNeighbor);
 
             currentCell.connect(randomNeighbor);
 
             // Introduce a chance to merge this path with an existing path.
-            if (Math.random() < 0.1) { // Adjust this value to control the frequency of merges.
+            if (seed.random() < 0.1) { // Adjust this value to control the frequency of merges.
                 mergeWithVisitedNeighbor(randomNeighbor);
             }
         } else {
             stack.pop();
             // After backtracking, introduce a chance to create a new branch from a visited cell.
-            if (Math.random() < 0.05 && stack.length > 0) { // Adjust this value as well.
+            if (seed.random() < 0.05 && stack.length > 0) { // Adjust this value as well.
                 mergeWithVisitedNeighbor(stack[stack.length - 1]);
             }
         }
@@ -147,7 +147,7 @@ export function generateMultiPathDepthFirstMaze(maze) {
     return maze;
 }
 
-export function generateSidewinderMaze(maze) {
+export function generateSidewinderMaze(maze, seed) {
     for (let y = 0; y < maze.height; y++) {
         // Start a new run for each row
         let run = [];
@@ -161,11 +161,11 @@ export function generateSidewinderMaze(maze) {
             // We close the run if the cell is at the eastern boundary or randomly
             const atEasternBoundary = (x === maze.width - 1);
             const atNorthernBoundary = (y === 0);
-            const shouldCloseOut = atEasternBoundary || (!atNorthernBoundary && Math.random() < 0.5);
+            const shouldCloseOut = atEasternBoundary || (!atNorthernBoundary && seed.random() < 0.5);
 
             if (shouldCloseOut) {
                 // If closing out, we carve a passage north from a random cell in the run
-                const cellToCarveNorth = run[Math.floor(Math.random() * run.length)];
+                const cellToCarveNorth = run[Math.floor(seed.random() * run.length)];
                 if (!atNorthernBoundary) {
                     const northNeighbor = maze.getCell(cellToCarveNorth.x, cellToCarveNorth.y - 1);
                     cellToCarveNorth.connect(northNeighbor);
@@ -184,7 +184,7 @@ export function generateSidewinderMaze(maze) {
 }
 
 
-export function generateEllersMaze(maze) {
+export function generateEllersMaze(maze, seed) {
     let currentRowSets = [];
     let setCounter = 1;
 
@@ -215,7 +215,7 @@ export function generateEllersMaze(maze) {
             let cell = maze.getCell(x, y);
             let rightCell = maze.getCell(x + 1, y);
 
-            if (currentRowSets[x] !== currentRowSets[x + 1] && Math.random() > 0.5) {
+            if (currentRowSets[x] !== currentRowSets[x + 1] && seed.random() > 0.5) {
                 joinRight(cell, rightCell);
             }
         }
@@ -225,7 +225,7 @@ export function generateEllersMaze(maze) {
             let setsJoinedDown = {};
 
             for (let x = 0; x < maze.width; x++) {
-                if (!setsJoinedDown[currentRowSets[x]] && Math.random() > 0.5) {
+                if (!setsJoinedDown[currentRowSets[x]] && seed.random() > 0.5) {
                     joinDown(maze.getCell(x, y));
                     setsJoinedDown[currentRowSets[x]] = true;
                 }
@@ -254,15 +254,15 @@ export function generateEllersMaze(maze) {
     return maze;
 }
 
-export function generateHuntAndKillWithBraidsMaze(maze) {
+export function generateHuntAndKillWithBraidsMaze(maze, seed) {
     let currentCell = maze.getCell(0, 0);
     currentCell.visited = true;
 
     // Function to create a braid (loop) in the maze by connecting a cell to a visited neighbor
     const createBraid = (cell) => {
         const visitedNeighbors = maze.getVisitedNeighbors(cell);
-        if (visitedNeighbors.length > 0 && Math.random() < 0.15) { // Increase the probability as needed
-            const randomVisitedNeighbor = visitedNeighbors[Math.floor(Math.random() * visitedNeighbors.length)];
+        if (visitedNeighbors.length > 0 && seed.random() < 0.15) { // Increase the probability as needed
+            const randomVisitedNeighbor = visitedNeighbors[Math.floor(seed.random() * visitedNeighbors.length)];
             cell.connect(randomVisitedNeighbor);
         }
     };
@@ -270,8 +270,8 @@ export function generateHuntAndKillWithBraidsMaze(maze) {
     // Function to create a partial braid by connecting a visited cell to an unvisited neighbor
     const createPartialBraid = (cell) => {
         const unvisitedNeighbors = maze.getUnvisitedNeighbors(cell);
-        if (unvisitedNeighbors.length > 0 && Math.random() < 0.15) { // Increase the probability as needed
-            const randomUnvisitedNeighbor = unvisitedNeighbors[Math.floor(Math.random() * unvisitedNeighbors.length)];
+        if (unvisitedNeighbors.length > 0 && seed.random() < 0.15) { // Increase the probability as needed
+            const randomUnvisitedNeighbor = unvisitedNeighbors[Math.floor(seed.random() * unvisitedNeighbors.length)];
             cell.connect(randomUnvisitedNeighbor);
         }
     };
@@ -287,7 +287,7 @@ export function generateHuntAndKillWithBraidsMaze(maze) {
             if (visitedNeighbors.length === 0) break; // No more visited neighbors to extend the braid
 
             // Randomly select the next cell to potentially extend the braid
-            nextCell = visitedNeighbors[Math.floor(Math.random() * visitedNeighbors.length)];
+            nextCell = visitedNeighbors[Math.floor(seed.random() * visitedNeighbors.length)];
             potentialBraidPath.push(nextCell);
         }
 
@@ -304,9 +304,9 @@ export function generateHuntAndKillWithBraidsMaze(maze) {
 
         if (neighbors.length > 0) {
             // Always try to create a partial braid before connecting to a new unvisited cell
-            Math.random() > 0.5 ? createBraid(currentCell) : createPartialBraid(currentCell);
+            seed.random() > 0.5 ? createBraid(currentCell) : createPartialBraid(currentCell);
             
-            const randomNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+            const randomNeighbor = neighbors[Math.floor(seed.random() * neighbors.length)];
             currentCell.connect(randomNeighbor);
             randomNeighbor.visited = true;
             currentCell = randomNeighbor;
@@ -326,7 +326,7 @@ export function generateHuntAndKillWithBraidsMaze(maze) {
                         if (neighbors.length > 0) {
                             currentCell = cell;
                             currentCell.visited = true;
-                            const randomVisitedNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+                            const randomVisitedNeighbor = neighbors[Math.floor(seed.random() * neighbors.length)];
                             currentCell.connect(randomVisitedNeighbor);
                             // Try to create a braid on this newly connected cell
                             createLongBraid(currentCell);

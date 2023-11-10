@@ -2,8 +2,14 @@
 // A simple seedable random number generator
 class SeededRandom {
     constructor(seed) {
-      this.seed = seed;
-      this.initialSeed = seed;
+        if(!seed) seed = Date.now()*0.0001;
+        this.seed = seed;
+        this.initialSeed = seed;
+    }
+
+    set(seed) {
+        this.seed = seed;
+        this.initialSeed = seed;
     }
   
     reset() {
@@ -11,7 +17,7 @@ class SeededRandom {
     }
   
     random() {
-      const x = Math.sin(this.seed++) * 10000;
+      const x = Math.sin(this.seed++)*10000;
       return x - Math.floor(x);
     }
   }
@@ -39,15 +45,18 @@ export class Maze {
 
     drawFiddleHeads = false;
 
-    constructor(width, height, generateMazeFunction, onWin) {
-        this.generateMaze(width,height,generateMazeFunction, onWin);
+    constructor(width, height, generateMazeFunction, onWin, seed) {
+        if(seed) {this.seed.set(seed);}
+        this.generateMaze(width,height, generateMazeFunction, onWin);
     }
 
-    generateMaze(width, height, generateMazeFunction, onWin) {
+    generateMaze(width, height, generateMazeFunction, onWin, seed) {
         if(width) this.width = width;
         if(height) this.height = height;
         if(generateMazeFunction) this.generator = generateMazeFunction;
         if(onWin) this.onWin = onWin; // Store the win callback
+        if(seed) {this.seed.set(seed);}
+        console.time(`genMaze ${this.generator.name}`);
 
         if(this.cells.length > 0) { //hard reset
             this.cells.length = 0;
@@ -73,8 +82,9 @@ export class Maze {
         }
   
         if (typeof this.generator === 'function') {
-            this.generator(this);
+            this.generator(this, this.seed);
         }
+        console.timeEnd(`genMaze ${this.generator.name}`);
     }
  
     getDirectionKey(dx, dy) {
@@ -268,42 +278,42 @@ export class Maze {
     //set start/end posts along different edges. Doesn't guarantee they aren't nearby.
     setRandomStartAndEnd() {
         // Set a random starting point
-        const startEdge = Math.floor(Math.random() * 4); // 0: up, 1: right, 2: down, 3: left
+        const startEdge = Math.floor(this.seed.random() * 4); // 0: up, 1: right, 2: down, 3: left
         let startX, startY;
         if (startEdge === 0) { // up
-            startX = Math.floor(Math.random() * this.width);
+            startX = Math.floor(this.seed.random() * this.width);
             startY = 0;
         } else if (startEdge === 1) { // right
             startX = this.width - 1;
-            startY = Math.floor(Math.random() * this.height);
+            startY = Math.floor(this.seed.random() * this.height);
         } else if (startEdge === 2) { // down
-            startX = Math.floor(Math.random() * this.width);
+            startX = Math.floor(this.seed.random() * this.width);
             startY = this.height - 1;
         } else { // left
             startX = 0;
-            startY = Math.floor(Math.random() * this.height);
+            startY = Math.floor(this.seed.random() * this.height);
         }
         this.setStart(startX, startY);
         
         // Set a random ending point on a different edge
         let endEdge;
         do {
-            endEdge = Math.floor(Math.random() * 4);
+            endEdge = Math.floor(this.seed.random() * 4);
         } while (endEdge === startEdge); // Ensure the end edge is different from the start edge
         
         let endX, endY;
         if (endEdge === 0) { // up
-            endX = Math.floor(Math.random() * this.width);
+            endX = Math.floor(this.seed.random() * this.width);
             endY = 0;
         } else if (endEdge === 1) { // right
             endX = this.width - 1;
-            endY = Math.floor(Math.random() * this.height);
+            endY = Math.floor(this.seed.random() * this.height);
         } else if (endEdge === 2) { // down
-            endX = Math.floor(Math.random() * this.width);
+            endX = Math.floor(this.seed.random() * this.width);
             endY = this.height - 1;
         } else { // left
             endX = 0;
-            endY = Math.floor(Math.random() * this.height);
+            endY = Math.floor(this.seed.random() * this.height);
         }
         this.setEnd(endX, endY);
     }
@@ -521,7 +531,6 @@ export class Maze {
     }
 
     draw(context, size, strokeStyle='blue', drawPlayerPaths=true) {
-        this.seed.reset();
 
         context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 

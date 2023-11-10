@@ -16,6 +16,7 @@ import {
 
 import * as BABYLON from 'babylonjs'
 
+console.log("Note: Single threaded test");
 
 function generateMazeUI(
   mazeName, 

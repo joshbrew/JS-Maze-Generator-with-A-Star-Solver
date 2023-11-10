@@ -35,7 +35,8 @@ export class AStarSolver {
         let end = this.maze.cells[endY][endX];
         
         if(start === this.start && end === this.end && this.path.length > 0) return this.path; //just return existing path instead of solving again
-
+        
+        //console.time('astar');
 
         this.reset();
     
@@ -53,7 +54,7 @@ export class AStarSolver {
 
             if (current === this.end) {
                 this.path = this.reconstructPath(current);
-                console.timeEnd('astar');
+                //console.timeEnd('astar');
                 return this.path;
             }
     
@@ -77,7 +78,7 @@ export class AStarSolver {
                 }
             }
         }
-    
+        //console.timeEnd('astar');
         return []; // No path found
     }
         
@@ -91,6 +92,7 @@ export class AStarSolver {
         return cell;
     }
 
+    //todo add rules like, cannotOccupySameCell with path projection
     solveMultiple(goals, allowDiagonal=false) {
         
         let starts = {}; let ends = {};
@@ -115,7 +117,7 @@ export class AStarSolver {
         let allEmpty = false;
 
         do {
-            for (const key of unfinishedKeys) {
+            for (const key of unfinishedKeys) { 
                 if (!this.openSets[key].isEmpty()) {
     
                     let current = this.openSets[key].pop();
