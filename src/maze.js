@@ -5,6 +5,7 @@ class SeededRandom {
         if(!seed) seed = Date.now()*0.0001;
         this.seed = seed;
         this.initialSeed = seed;
+        this.e = Math.E;
     }
 
     set(seed) {
@@ -17,7 +18,8 @@ class SeededRandom {
     }
   
     random() {
-      const x = Math.sin(this.seed++)*10000;
+      this.seed += this.e;
+      const x = 1000000000*Math.sin(this.seed);
       return x - Math.floor(x);
     }
   }
