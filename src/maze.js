@@ -23,10 +23,10 @@ export class Maze {
     seed = new SeededRandom(Date.now()*0.001);
 
     directions = {
-        left: { dx: -1, dy: 0 },
-        right: { dx: 1, dy: 0 },
-        up: { dx: 0, dy: -1 },
-        down: { dx: 0, dy: 1 },
+        left: { dx: -1, dy: 0, wallDirection: 'left', opposite: 'right' }, 
+        right: { dx: 1, dy: 0, wallDirection: 'right', opposite: 'left' },
+        up: { dx: 0, dy: -1, wallDirection: 'up', opposite: 'down' },
+        down: { dx: 0, dy: 1, wallDirection: 'down', opposite: 'up' }
     };
 
     width; height; generator; onWin;
@@ -183,17 +183,16 @@ export class Maze {
       
         // Iterate over all possible directions
         for (const direction in this.directions) {
-            const { dx, dy } = this.directions[direction];
+            const { dx, dy, wallDirection, opposite } = this.directions[direction];
             const x = cell.x + dx;
             const y = cell.y + dy;
       
             // Check boundary conditions
             if (x >= 0 && y >= 0 && x < this.width && y < this.height) {
                 const potentialNeighbor = this.cells[y][x];
-                const wallDirection = this.getWallDirection(dx, dy);
       
                 // Check if there is no wall between the current cell and the potential neighbor
-                if (!cell.walls[wallDirection] && !potentialNeighbor.walls[this.getOppositeDirection(wallDirection)]) {
+                if (!cell.walls[wallDirection] && !potentialNeighbor.walls[opposite]) {
                     neighbors.push(potentialNeighbor);
                 }
             }
@@ -572,7 +571,7 @@ export class MazeCell {
     x; y; 
     isStart; isPath; isEnd; 
     visited = false; // A flag to indicate whether this cell has been visited during maze generation
-
+    id = Math.random();
       // All cells start with all walls intact
     walls = { up: true, right: true, down: true, left: true };
     
