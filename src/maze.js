@@ -748,7 +748,7 @@ export class MazeCell {
     
 }
 
-const randomNumSpirals = (seed) => Math.floor(seed.random() * 5) + 1; // Random number of spirals, between 1 and 6
+const randomNumSpirals = (seed) => Math.floor(seed.random() * 4) + 1; // Random number of spirals, between 1 and 6
 
 // Function to draw spirals at each wall if it exists
 function drawWallWithSpirals (context, size, fromX, fromY, toX, toY, direction, seed, strokeStyle) {
@@ -775,13 +775,14 @@ function drawWallWithSpirals (context, size, fromX, fromY, toX, toY, direction, 
 };
 
 function drawSpiral(context, startX, startY, size, turns, wallOrientation, seed, strokeStyle='green') {
-    let initialRadius = size * 0.02; // Start with a small radius
-    let radiusIncrement = size * 0.04; // Increment rate for the radius
+    let initialRadius = (size+seed.random()-0.75) * 0.02; // Start with a small radius
+    let radiusIncrement = (size+seed.random()-1) * 0.04; // Increment rate for the radius
     let angleIncrement = Math.PI / (turns * 12); // Base increment for the angle
     let totalTurns = turns * 12 * 6; // Total number of iterations for the spiral
 
     // Determine the starting angle based on the wall orientation
     let startAngle;
+    let directionModifier = 1;
     switch (wallOrientation) {
         case 'up':
             startAngle = -Math.PI / 2;
@@ -791,13 +792,17 @@ function drawSpiral(context, startX, startY, size, turns, wallOrientation, seed,
             break;
         case 'down':
             startAngle = Math.PI / 2;
+            directionModifier = -1;
             break;
         case 'left':
             startAngle = Math.PI;
+            directionModifier = -1;
             break;
         default:
             startAngle = 0; // Default to right direction if orientation is undefined
     }
+
+    angleIncrement *= directionModifier;
 
     // Calculate the ending angle and radius
     let endAngle = startAngle + totalTurns * angleIncrement;
