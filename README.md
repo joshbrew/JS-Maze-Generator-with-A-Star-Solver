@@ -28,6 +28,7 @@ With latest NodeJS LTS installed. Open this folder in the command line (e.g. via
 
 Run: `npm i -g tinybuild` the `npm start` or `tinybuild`
 
+![vid](./screenshots/solver.mp4)
 ![cap](./screenshots/Capture.PNG)
 ![cap2](./screenshots/Capture2.PNG)
 ![cap3](./screenshots/Capture3.PNG)
