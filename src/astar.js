@@ -29,7 +29,8 @@ export class AStarSolver {
         endX = this.maze.end.x,
         endY = this.maze.end.y,
         allowDiagonal = this.maze.allowDiagonal,
-        maxWaitTicks=5 //maximum wait period before aborting
+        maxWaitTicks=5, //maximum wait period before aborting
+        rules
     ) => {
 
         let start = this.maze.cells[startY][startX];
@@ -70,7 +71,9 @@ export class AStarSolver {
                 let tempG = current.g + 1;
                 
                 if (!(neighbor.id in openSet.elementIndices) || tempG < neighbor.g) {
-                    hasValidMove = true;
+                    if(rules && !this.applyRules(this.maze,rules,current,neighbor,waitTicks)) continue;
+
+                    hasValidMove = true; if(waitTicks) waitTicks = 0;
                     neighbor.g = tempG;
                     neighbor.f = tempG + (allowDiagonal ? this.heuristicDiag(neighbor, this.end) : this.heuristicGrid(neighbor, this.end));
                     neighbor.previous = current;
@@ -186,13 +189,12 @@ export class AStarSolver {
                             // Apply rules defined in goals to check the next best pick
                             if (goal.rules && !this.applyRules(this.maze, goal.rules, current, neighbor, waitTicks[key])) continue;
     
-                            hasValidMove = true;
+                            hasValidMove = true; if(waitTicks[key]) waitTicks[key] = 0;
 
                             heuristics.g = tempG;
                             heuristics.f = heuristics.g + (allowDiagonal ? this.heuristicDiag(neighbor, ends[key]) : this.heuristicGrid(neighbor, ends[key]));
                             heuristics.previous = current;
 
-    
                             if (!(neighbor.id in this.openSets[key].elementIndices)) {
                                 this.openSets[key].push(neighbor, heuristics.f);
                             } else {
