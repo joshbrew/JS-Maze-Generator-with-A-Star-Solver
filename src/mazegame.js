@@ -47,18 +47,51 @@ export class MazeGame {
         document.getElementById(this.raceButtonId).onclick = () => this.raceAI();
     }
 
-    setGeneratorInputEvents = (genButton,genXInput,genYInput) => {
+    setGeneratorInputEvents = (genButton,genXInput,genYInput,animateButton) => {
+
+        let animateonclick = () => {
+            if(this.solver.animating) {
+                this.solver.animating = false; clearTimeout(this.solver.timeout); cancelAnimationFrame(this.solver.animation);
+            }
+            if(this.racing)
+                this.stopRace();
+
+            const intervalInput = document.getElementById(this.intervalInputId);
+            const stepDelayMs = intervalInput ? parseFloat(intervalInput.value) * 1000 : 100;
+            this.solver.timeout = setTimeout(()=>{
+                this.solver.runAStarProgressAnimation(this.context, this.cellSize, this.strokeStyle, stepDelayMs);
+            }, stepDelayMs)
+
+            document.getElementById(animateButton).innerHTML = 'Stop Animating';
+            document.getElementById(animateButton).onclick = () => {
+                if(this.solver.animating) {
+                    this.solver.animating = false; 
+                    clearTimeout(this.solver.timeout); 
+                    cancelAnimationFrame(this.solver.animation);
+                }
+                document.getElementById(animateButton).innerHTML = 'Animate Path';
+                document.getElementById(animateButton).onclick = animateonclick;
+            }
+        }
+
         document.getElementById(genButton).onclick = () => {
             let w = document.getElementById(genXInput).value;
             let h = document.getElementById(genYInput).value;
             let nCellsPerRow = parseInt(w) ? parseInt(w) : 20;
             let nRows = parseInt(h) ? parseInt(h) : 20;
             this.cellSize = this.canvas.width/(nCellsPerRow > nRows ? nCellsPerRow : nRows); //assume square
+            if(this.solver.animating) {
+                this.solver.animating = false; clearTimeout(this.solver.timeout); cancelAnimationFrame(this.solver.animation);
+                
+                document.getElementById(animateButton).innerHTML = 'Animate Path';
+                document.getElementById(animateButton).onclick = animateonclick;
+            }
             this.stopRace();
             this.maze.reset(false);
             this.maze.generateMaze(nCellsPerRow,nRows);
             this.maze.draw(this.context, this.cellSize, this.strokeStyle);
         }
+        document.getElementById(animateButton).onclick = animateonclick;
     }
     
     setActive = () => {
@@ -81,9 +114,10 @@ export class MazeGame {
         // Ensure there is an active game
         if (!MazeGame.activeGame) return;
 
-        event.preventDefault();
         // Update the set of currently pressed keys
         MazeGame.pressedKeys.add(event.key);
+        if(event.key === 'w' || event.key === 'a' || event.key === 's' || event.key === 'd' || event.key.includes('Arrow')) 
+            event.preventDefault();
 
         const keypressLoop = ()=>{
             if(MazeGame.pressedKeys.has(event.key)) {

@@ -536,6 +536,7 @@ export class Maze {
         // Draw color trails first
         let lastSeed = this.seed.randF;
         this.seed.randF = this.seed.initialSeed;
+        context.beginPath();
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
                 const cell = this.cells[y][x];
@@ -559,11 +560,13 @@ export class Maze {
                         strokeStyle,
                         this.allowDiagonal,
                         this.drawFiddleHeads, 
-                        this.seed
+                        this.seed,
+                        true
                     );
                 }
             }
         }
+        context.stroke(); //faster not to do it per-cell
         this.seed.randF = lastSeed;
     }
 
@@ -707,7 +710,7 @@ export class MazeCell {
       this.isPath = false;
     }
 
-    drawSquareCell = (context, size, strokeStyle='blue', fiddleheads, seed) => {
+    drawSquareCell = (context, size, strokeStyle='blue', fiddleheads, seed, bulkDraw) => {
         
         if (this.isStart || this.isEnd) {
             context.fillStyle = this.isStart ? 'green' : this.isEnd ? 'red' : 'blue';
@@ -731,7 +734,7 @@ export class MazeCell {
           else {
               // Drawing the walls of the cell
               context.strokeStyle = strokeStyle;
-              context.beginPath();
+              if(!bulkDraw) context.beginPath();
               if (this.walls.up) {
                   context.moveTo(this.x * size, this.y * size);
                   context.lineTo((this.x + 1) * size, this.y * size);
@@ -748,11 +751,11 @@ export class MazeCell {
                   context.moveTo(this.x * size, (this.y + 1) * size);
                   context.lineTo(this.x * size, this.y * size);
               }
-              context.stroke();
+              if(!bulkDraw) context.stroke();
           }
     }
 
-    drawOctagonalCell(context, size, strokeStyle) {
+    drawOctagonalCell(context, size, strokeStyle, bulkDraw) {
         // Calculate diagonal offset for drawing diagonal walls
         const diagonalOffset = size / (2 * Math.sqrt(2)); // Half diagonal of a square of side 'size'
     
@@ -763,7 +766,7 @@ export class MazeCell {
         }
     
         context.strokeStyle = strokeStyle;
-        context.beginPath();
+        if(!bulkDraw) context.beginPath();
     
         // Drawing orthogonal walls
         if (this.walls.up) {
@@ -801,17 +804,17 @@ export class MazeCell {
             context.lineTo(this.x * size + diagonalOffset, this.y * size);
         }
     
-        context.stroke();
+        if(!bulkDraw) context.stroke();
     }
 
     // Method to draw the cell and its walls on a canvas context
-    draw(context, size, strokeStyle='blue', allowDiagonal=false, fiddleheads = false, seed) {
+    draw(context, size, strokeStyle='blue', allowDiagonal=false, fiddleheads = false, seed, bulkDraw=false) {
         // If the cell is marked as the start or end, fill it with a color
 
         if(allowDiagonal) {
-            this.drawOctagonalCell(context, size, strokeStyle);
+            this.drawOctagonalCell(context, size, strokeStyle, bulkDraw);
         } else {
-            this.drawSquareCell(context, size, strokeStyle, fiddleheads, seed)
+            this.drawSquareCell(context, size, strokeStyle, fiddleheads, seed, bulkDraw)
         }
     }
 }

@@ -18,6 +18,7 @@ Also a simple BabylonJS render with instanced static meshes. Needs to be threade
 Lots of comments in the code for explaining.
 
 - A* does single and multiagent pathfinding, multiagent allows e.g. for setting avoidance/wait rules for each other on each pass.
+- Includes a search visualization, note the canvas stuff is not efficient but it's plenty fast for demoing.
 
 # Run Example
 
@@ -31,6 +32,7 @@ Run: `npm i -g tinybuild` the `npm start` or `tinybuild`
 ![cap4](./screenshots/Capture4.PNG)
 ![cap5](./screenshots/Capture5.PNG)
 ![cap6](./screenshots/Capture6.PNG)
+![cap7](./screenshots/Capture7.PNG)
 
 
 # Usage

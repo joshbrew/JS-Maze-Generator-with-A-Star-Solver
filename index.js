@@ -41,7 +41,8 @@ function generateMazeUI(
       <button id='${mazeType}solve-${uniqueId}'>Show Path</button>
       <button id='${mazeType}race-${uniqueId}'>Race AI</button>
       AI Move Step (seconds): <input id='${mazeType}intv-${uniqueId}' value='0.3' type='number'/>
-      <div>
+      <button id='${mazeType}animate-${uniqueId}'>Animate Path</button>
+      <div id="controls-${uniqueId}">
           <hr/>
           Maze Dimensions:<br/>
           Width (x): <input id='${mazeType}X-${uniqueId}' type='number' value='${cellsPerRow}'/>
@@ -60,7 +61,7 @@ function generateMazeUI(
 
   // Set up the input events for the AI and maze generator
   mazeGame.setAIInputEvents(`${mazeType}intv-${uniqueId}`, `${mazeType}solve-${uniqueId}`, `${mazeType}race-${uniqueId}`);
-  mazeGame.setGeneratorInputEvents(`gen${mazeType}-${uniqueId}`,`${mazeType}X-${uniqueId}`,`${mazeType}Y-${uniqueId}`);
+  mazeGame.setGeneratorInputEvents(`gen${mazeType}-${uniqueId}`,`${mazeType}X-${uniqueId}`,`${mazeType}Y-${uniqueId}`, `${mazeType}animate-${uniqueId}`);
 
   //add some animation
   let onPlayerCollision = (player, wallDirection, playerIndex) => {

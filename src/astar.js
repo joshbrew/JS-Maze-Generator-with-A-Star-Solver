@@ -6,8 +6,12 @@ export class AStarSolver {
     
     maze; start; end;
     openSet = new PriorityQueue();
-    closedSet = new Set();
+    closedSet = {};
+    searched = {};
     path = [];
+    waitTicks = 0;
+    waits = {};
+    maxF = 0;
 
     //multiagent
     goals = {};
@@ -16,6 +20,9 @@ export class AStarSolver {
     paths = {};
     starts = {}; 
     ends = {};
+
+    animating = false;
+    animation; timeout;
 
     constructor(maze) {
       this.maze = maze;
@@ -29,8 +36,8 @@ export class AStarSolver {
         endX = this.maze.end.x,
         endY = this.maze.end.y,
         allowDiagonal = this.maze.allowDiagonal,
-        maxWaitTicks=5, //maximum wait period before aborting
-        rules
+        rules,
+        maxWaitTicks=5 //maximum wait period before aborting
     ) => {
 
         let start = this.maze.cells[startY][startX];
@@ -50,55 +57,66 @@ export class AStarSolver {
         const closedSet = this.closedSet;
         openSet.push(this.start, this.start.f);
     
-        let waitTicks = 0;
-        let waits = {};
-
-        while (!openSet.isEmpty()) {
-            let current = openSet.pop();
-            closedSet.add(current);
-
-            if (current === this.end) {
-                this.path = this.reconstructPath(current, waits);
-                console.timeEnd('astar');
-                return this.path;
-            }
-    
-            let hasValidMove = false;
-            for (let neighbor of this.maze.getReachableNeighbors(current, allowDiagonal)) {
-                if (closedSet.has(neighbor)) continue;
-    
-                neighbor = this.initializeCell(neighbor);
-                let tempG = current.g + 1;
-                
-                if (!(neighbor.id in openSet.elementIndices) || tempG < neighbor.g) {
-                    if(rules && !this.applyRules(this.maze,rules,current,neighbor,waitTicks)) continue;
-
-                    hasValidMove = true; if(waitTicks) waitTicks = 0;
-                    neighbor.g = tempG;
-                    neighbor.f = tempG + (allowDiagonal ? this.heuristicDiag(neighbor, this.end) : this.heuristicGrid(neighbor, this.end));
-                    neighbor.previous = current;
-    
-                    if (!(neighbor.id in openSet.elementIndices)) {
-                        openSet.push(neighbor, neighbor.f);
-                    } else {
-                        // Update the priority queue with the new f value
-                        openSet.update(neighbor, neighbor.f);
-                    }
-                }
-            }
-
-            // If no valid move is found, wait in the current cell
-            if (!hasValidMove && waitTicks < maxWaitTicks) {
-                waitTicks++;
-                if(!(current.id in waits)) waits[current.id] = 0;
-                waits[current.id]++; // Increment wait count for the current cell
-                
-                openSet.push(current, current.f + 1); // Re-add current cell with a higher cost
-                closedSet.delete(current); // Remove current cell from closed set for reconsideration
-            }
+        while (true) {
+            const result = this.stepSolver(openSet, closedSet, allowDiagonal, rules, maxWaitTicks);
+            if(result && result !== true) break;
         }
         console.timeEnd('astar');
-        return []; // No path found
+        return this.path; // No path found
+    }
+
+    stepSolver = (openSet, closedSet, allowDiagonal, rules, maxWaitTicks) => {
+        if(openSet.isEmpty()) return this.path;
+        let hasValidMove = false;
+        let current = openSet.pop();
+        this.searched[current.id] = current;
+        closedSet[current.id] = current;
+
+        if (current === this.end) {
+            this.path = this.reconstructPath(current, this.waits);
+            return this.path;
+        }
+
+        for (const neighbor of this.maze.getReachableNeighbors(current, allowDiagonal)) {
+            if (closedSet[neighbor.id]) continue;
+
+            this.initializeCell(neighbor);
+            let tempG = current.g + 1;
+            
+            if (!(neighbor.id in openSet.elementIndices) || tempG < neighbor.g) {
+                let tempF = tempG + (allowDiagonal ? this.heuristicDiag(neighbor, this.end) : this.heuristicGrid(neighbor, this.end));
+                if(rules && !this.applyRules(this.maze,rules,current, neighbor, tempG, tempF, this.waitTicks)) continue;
+
+                hasValidMove = true; if(this.waitTicks) this.waitTicks = 0;
+                neighbor.g = tempG;
+                neighbor.f = tempF; if(tempF > this.maxF) this.maxF = tempF;
+                neighbor.previous = current;
+
+                this.searched[neighbor.id] = neighbor;
+                if (!(neighbor.id in openSet.elementIndices)) {
+                    openSet.push(neighbor, neighbor.f);
+                } else {
+                    // Update the priority queue with the new f value
+                    openSet.update(neighbor, neighbor.f);
+                }
+            }
+        }
+
+        if (hasValidMove === false) {
+            if(this.waitTicks < maxWaitTicks) {
+                this.waitTicks++;
+                if(!(current.id in this.waits)) this.waits[current.id] = 0;
+                this.waits[current.id]++; // Increment wait count for the current cell
+                
+                openSet.push(current, current.f + 1); // Re-add current cell with a higher cost
+                delete closedSet[current.id]; // Remove current cell from closed set for reconsideration
+            } else if(openSet.isEmpty()) {
+                this.path = this.reconstructPath(current, this.waits); //should allow you to get as close as possible
+                return this.path;
+            }
+        }
+
+        return hasValidMove;
     }
         
     initializeCell(cell, gValue = 0) {
@@ -111,12 +129,66 @@ export class AStarSolver {
         return cell;
     }
 
+    //this will decide which cells to skip navigating to based on added rules
+    applyRules(maze, rules, current, neighbor, f, g, currentWaitTick) {
+        for (const rule in rules) {
+            if(typeof rules[rule] === 'function') rules[rule](maze, current, neighbor, f, g, currentWaitTick);
+            else if(rule === 'cannotOccupySameCell') {
+                if (goal.cannotOccupySameCell && (goal.occupiedCells?.has(neighbor) || goal.previouslyOccupiedCells?.has(neighbor)))
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    reconstructPath(end, waits) {
+        let current = end;
+        let path = [];
+        while (current) {
+            path.push(current);
+            if(waits?.[current.id]) { for(let i = 0; i < waits[current.id]; i++) { path.push(current); }}
+            current = current.previous;
+        }
+        return path.reverse();
+    }
+
+    reset(multiagent=false) {
+        this.maxF = 0;
+        function withCell(cell) { //reset heuristics
+            if('g' in cell) {cell.h = 0; cell.f = 0; cell.g = 0;}
+            if(cell.heuristics) cell.heuristics = {};
+        }
+        if(multiagent) {
+            for(const key in this.searched) {
+                withCell(this.searched[key]);
+            }
+            for(const key in this.openSets) { //clear these if doing multiagent
+                this.openSets[key].reset();
+                this.closedSets[key].clear();
+            }
+            this.paths = {};
+            this.searched = {}
+        } else {
+            this.waitTicks = 0;
+            this.waits = {};
+            this.openSet.reset();
+            this.closedSet = {};
+            for(const key in this.searched) {
+                withCell(this.searched[key]);
+            }
+            this.searched = {}
+            this.path.length = 0;
+        }
+    }
+
     //todo add rules like, cannotOccupySameCell with path projection
     solveMultiple(
-        goals, //goals = { agent1:{startX,startY,endX,endY,rules:{cannotOccupySameCell:true,arbitrary:(maze, current, neighbor, currentWaitTicks)=>{if(condition) return false;}}}}
+        goals, //goals = { agent1:{startX,startY,endX,endY,rules:{cannotOccupySameCell:true,arbitrary:(maze, current, neighbor, f, g, currentWaitTicks)=>{if(condition) return false;}}}}
         allowDiagonal=false,
         maxWaitTicks=5
     ) {
+
+        this.reset(true);
         
         let starts = {}; let ends = {};
         
@@ -131,7 +203,7 @@ export class AStarSolver {
         for(const key in goals) {
             if(!this.openSets[key]) this.openSets[key] = new PriorityQueue();
             else this.openSets[key].reset();
-            if(!this.closedSets[key]) this.closedSets[key] = new Set();
+            if(!this.closedSets[key]) this.closedSets[key] = {};
             else this.closedSets[key].clear();
             this.paths[key] = [];
             starts[key] = this.maze.cells[startY][startX];
@@ -162,6 +234,7 @@ export class AStarSolver {
                 if (!this.openSets[key].isEmpty()) {
                     const goal = goals[key];
                     let current = this.openSets[key].pop();
+                    if(!this.searched[current.id]) this.searched[current.id] = current;
 
                     // Update current position for each agent
                     if(agentHasAvoidanceRule) occupiedCells.add(current);
@@ -174,11 +247,11 @@ export class AStarSolver {
                         continue;
                     }
     
-                    this.closedSets[key].add(current);
+                    this.closedSets[key][current.id] = current;
     
                     let hasValidMove = false;
                     for (let neighbor of this.maze.getReachableNeighbors(current, allowDiagonal)) {
-                        if (this.closedSets[key].has(neighbor)) continue;
+                        if (this.closedSets[key][neighbor.id]) continue;
 
                         neighbor = this.initializeCellMulti(neighbor, 0, key);
                         
@@ -194,7 +267,9 @@ export class AStarSolver {
                             heuristics.g = tempG;
                             heuristics.f = heuristics.g + (allowDiagonal ? this.heuristicDiag(neighbor, ends[key]) : this.heuristicGrid(neighbor, ends[key]));
                             heuristics.previous = current;
+                            this.closedSets[key][neighbor.id] = neighbor;
 
+                            if(!this.searched[neighbor.id]) this.searched[neighbor.id] = neighbor;
                             if (!(neighbor.id in this.openSets[key].elementIndices)) {
                                 this.openSets[key].push(neighbor, heuristics.f);
                             } else {
@@ -205,14 +280,22 @@ export class AStarSolver {
                     }
 
                     // If no valid move is found, and cannotOccupySameCell rule applies, wait in the current cell
-                    if (!hasValidMove && waitTicks[key] < maxWaitTicks) {
-                        waitTicks[key]++;
-                        if(!waits[key][current.id]) waits[key][current.id] = 0;
-                        waits[key][current.id]++; // Increment wait count for the current cell
-                        
-                        //console.log(`agent ${key} is waiting at ${current.x,current.y}`)
-                        this.openSets[key].push(current, current.heuristics[key].f + 1); // Re-add current cell with a higher cost
-                        this.closedSets[key].delete(current); // Remove current cell from closed set for reconsideration
+                    if (!hasValidMove) {
+                        if(waitTicks[key] < maxWaitTicks) {
+                            waitTicks[key]++;
+                            if(!waits[key][current.id]) waits[key][current.id] = 0;
+                            waits[key][current.id]++; // Increment wait count for the current cell
+                            
+                            //console.log(`agent ${key} is waiting at ${current.x,current.y}`)
+                            this.openSets[key].push(current, current.heuristics[key].f + 1); // Re-add current cell with a higher cost
+                            delete this.closedSets[key][current.id]; // Remove current cell from closed set for reconsideration
+                        } else if(openSet.isEmpty()) {
+                            this.paths[key] = this.reconstructPath(current, waits[key]);
+                            //console.log(`Goal for ${key} is currently unreachable.`);
+                            delete unfinishedGoals[key];
+                            delete unfinishedKeys[key];
+                            if(unfinishedKeys.length === 0) allEmpty = true;
+                        }
                     }
 
                 } else {
@@ -242,50 +325,7 @@ export class AStarSolver {
         return cell;
     }
 
-    //this will decide which cells to skip navigating to based on added rules
-    applyRules(maze, rules, current, neighbor, currentWaitTick) {
-        for (const rule in rules) {
-            if(typeof rules[rule] === 'function') rules[rule](maze, current, neighbor, currentWaitTick);
-            else if(rule === 'cannotOccupySameCell') {
-                if (goal.cannotOccupySameCell && (goal.occupiedCells.has(neighbor) || goal.previouslyOccupiedCells.has(neighbor)))
-                    return false;
-            }
-        }
-        return true;
-    }
-
-    reconstructPath(end, waits) {
-        let current = end;
-        let path = [];
-        while (current) {
-            path.push(current);
-            if(waits?.[current.id]) { for(let i = 0; i < waits[current.id]; i++) { path.push(current); }}
-            current = current.previous;
-        }
-        return path.reverse();
-    }
-
-    reset(multiagent=false) {
-        this.openSet.reset();
-        function withCell(cell) { //reset heuristics
-            if('g' in cell) {cell.h = 0; cell.f = 0; cell.g = 0;}
-            if(cell.heuristics) cell.heuristics = {};
-        }
-        if(multiagent) {
-            for(const key in this.closedSets) { //clear these if doing multiagent
-                this.closedSets[key].forEach(withCell);
-                this.closedSets[key].clear();
-            }
-            this.paths = {};
-        } else {
-            this.closedSet.forEach(withCell);
-            this.closedSet.clear();
-            this.path.length = 0;
-        }
-        this.start = this.maze.start;
-        this.end = this.maze.end;
-
-    }
+   
 
     heuristicGrid(cell1, cell2) { //A heuristic function for grid-based pathfinding.
         // The "Manhattan Distance" is calculated as the absolute difference of the x coordinates
@@ -349,6 +389,93 @@ export class AStarSolver {
         if(this.interval) clearInterval(this.interval);
     }
 
+    //we can step the a* solver and visualize the progress 
+    drawAStarProgress = (context, size, strokeStyle) => {
+        context.clearRect(0,0,context.canvas.width,context.canvas.height);
+        for (let y = 0; y < this.maze.height; y++) {
+            for (let x = 0; x < this.maze.width; x++) {
+                const cell = this.maze.cells[y][x];
+                
+                // If the cell has g and f values, use them to create a gradient
+                if (typeof cell.g !== 'undefined' && typeof cell.f !== 'undefined' && this.maxF > 0) {
+                    // Normalize the f value using a power scale for better differentiation
+                    // Adjust the exponent based on desired sensitivity (e.g., 0.5 for square root scaling)
+                    const exponent = 0.5; // Can be adjusted for more or less sensitivity
+                    const normalizedCost = Math.pow(cell.f / this.maxF, exponent);
+
+                    // Adjust hue value based on the normalized cost
+                    const hue = normalizedCost * (300); // Range from 120 (green) to 240 (blue)
+
+                    // Adjust opacity based on the normalized cost
+                    const opacity = Math.min(1, normalizedCost * 2); // Ensuring opacity is at most 1
+
+                    // Use HSLA for coloring
+                    context.fillStyle = `hsla(${hue}, 100%, 50%, ${opacity})`;
+                    context.fillRect(cell.x * size, cell.y * size, size, size);
+                }
+    
+                // Draw cell walls and other features
+                cell.draw(
+                    context, 
+                    size, 
+                    strokeStyle,
+                    this.maze.allowDiagonal,
+                    this.maze.drawFiddleHeads, 
+                    this.maze.seed
+                );
+            }
+        }
+    }
+
+    //run solver as normal but delay steps so we can animate the decision boundaries
+    runAStarProgressAnimation = (
+        context, size, strokeStyle, stepDelayMs=100, 
+        startX = this.maze.start.x, 
+        startY = this.maze.start.y,
+        endX = this.maze.end.x,
+        endY = this.maze.end.y,
+        allowDiagonal = this.maze.allowDiagonal, 
+        rules, maxWaitTicks
+    ) => {
+        let start = this.maze.cells[startY][startX];
+        let end = this.maze.cells[endY][endX];
+        
+        //if(start === this.start && end === this.end && this.path.length > 0) return this.path; //just return existing path instead of solving again
+        
+        this.reset();
+    
+        this.start = start;
+        this.end = end;
+        this.initializeCell(this.start);
+    
+        const openSet = this.openSet;
+        const closedSet = this.closedSet;
+        openSet.push(this.start, this.start.f);
+    
+        this.waitTicks = 0;
+        this.waits = {};
+
+        this.animating = true;
+        return new Promise((res,rej) => {
+            const step = () => {
+                if(this.animating) {
+                    const result = this.stepSolver(openSet, closedSet, allowDiagonal, rules, maxWaitTicks);
+                    this.drawAStarProgress(context, size, strokeStyle);
+                    if(result && result !== true) {
+                        this.animating = false;
+                        res(this.path);
+                    } 
+                    else {
+                        if(stepDelayMs) this.timeout = setTimeout(()=>{this.animation = requestAnimationFrame(step)}, stepDelayMs)
+                        else this.animation = requestAnimationFrame(step);
+                    }
+                } 
+                else res(this.reconstructPath(this.openSet.pop()));
+            }
+            this.animation = requestAnimationFrame(step);
+        });
+    }
+
 }
 
 class PriorityQueue { //w/ binary heap structure
@@ -356,6 +483,10 @@ class PriorityQueue { //w/ binary heap structure
     constructor() {
         this.elements = [];
         this.elementIndices = {}; // Hash table to keep track of elements' indices in the heap
+    }
+
+    forEach(cb) {
+        this.elements.forEach(cb);
     }
 
     push(element, priority) {
