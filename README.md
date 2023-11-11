@@ -8,7 +8,7 @@ Maze examples:
 - Depth First with random path joining (easy mode)
 - Sidewinder
 - Ellers
-- Hunt & Kill with Braids (set to octagonal/diagonal mode)
+- Hunt & Kill with Braids (set to octagonal/diagonal mode), with octagonal solving.
 - Remove random dead ends till no more 3 or 4 sided cells.
 - Remove random dead ends in a spiral from the center (always solvable).
 
@@ -17,7 +17,7 @@ Also a simple BabylonJS render with instanced static meshes. Needs to be threade
 
 Lots of comments in the code for explaining.
 
-- A* does single and multiagent pathfidning, multiagent allows e.g. for setting avoidance/wait rules for each other on each pass.
+- A* does single and multiagent pathfinding, multiagent allows e.g. for setting avoidance/wait rules for each other on each pass.
 
 # Run Example
 

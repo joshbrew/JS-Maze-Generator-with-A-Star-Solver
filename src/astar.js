@@ -110,7 +110,7 @@ export class AStarSolver {
 
     //todo add rules like, cannotOccupySameCell with path projection
     solveMultiple(
-        goals, //goals = { agent1:{startX,startY,endX,endY,cannotOccupySameCell}}
+        goals, //goals = { agent1:{startX,startY,endX,endY,rules:{cannotOccupySameCell:true,arbitrary:(maze, current, neighbor, currentWaitTicks)=>{if(condition) return false;}}}}
         allowDiagonal=false,
         maxWaitTicks=5
     ) {
@@ -122,6 +122,8 @@ export class AStarSolver {
 
         let agentHasAvoidanceRule = false;
         let waitTicks = {}; let waits = {};
+        let previouslyOccupiedCells = undefined; // Set to track previously occupied cells
+        let occupiedCells = undefined;
 
         for(const key in goals) {
             if(!this.openSets[key]) this.openSets[key] = new PriorityQueue();
@@ -138,14 +140,17 @@ export class AStarSolver {
             this.starts[key] = starts[key]
             this.ends[key] = ends[key];
 
-            if(!agentHasAvoidanceRule && goals[key].cannotOccupySameCell) agentHasAvoidanceRule = true;
+            if(goals[key].rules.cannotOccupySameCell) {
+                agentHasAvoidanceRule = true;
+                previouslyOccupiedCells = new Set(); // Set to track previously occupied cells
+                occupiedCells = new Set();
+                goals[key].occupiedCells = occupiedCells; goals[key].previouslyOccupiedCells = goals[key].previouslyOccupiedCells;
+            }
             waitTicks[key] = 0;
             waits[key] = {};
         }
 
         let allEmpty = false;
-        let previouslyOccupiedCells = agentHasAvoidanceRule ? new Set() : undefined; // Set to track previously occupied cells
-        let occupiedCells = agentHasAvoidanceRule ? new Set() : undefined;
 
 
         do { //we are updating everyone on the same step or up till their goal is reached so we can have concurrent planning
@@ -172,18 +177,15 @@ export class AStarSolver {
                     for (let neighbor of this.maze.getReachableNeighbors(current, allowDiagonal)) {
                         if (this.closedSets[key].has(neighbor)) continue;
 
-                        if (agentHasAvoidanceRule) {
-                            if (this.closedSets[key].has(neighbor) || (goal.cannotOccupySameCell && occupiedCells.has(neighbor))) 
-                                continue;
-                        }
-
-    
                         neighbor = this.initializeCellMulti(neighbor, 0, key);
                         
                         const heuristics = neighbor.heuristics[key];
                         let tempG = heuristics.g + 1;
     
                         if (!(neighbor.id in this.openSets[key].elementIndices) || tempG < heuristics.g) {
+                            // Apply rules defined in goals to check the next best pick
+                            if (goal.rules && !this.applyRules(this.maze, goal.rules, current, neighbor, waitTicks[key])) continue;
+    
                             hasValidMove = true;
 
                             heuristics.g = tempG;
@@ -220,7 +222,7 @@ export class AStarSolver {
             }
             if (agentHasAvoidanceRule) {
                 previouslyOccupiedCells.clear();
-                for (const cell of currentOccupations) {
+                for (const cell of occupiedCells) {
                     previouslyOccupiedCells.add(cell);
                 }
             }
@@ -236,6 +238,18 @@ export class AStarSolver {
             h:0, f:0, g:gValue, previous:null
         };
         return cell;
+    }
+
+    //this will decide which cells to skip navigating to based on added rules
+    applyRules(maze, rules, current, neighbor, currentWaitTick) {
+        for (const rule in rules) {
+            if(typeof rules[rule] === 'function') rules[rule](maze, current, neighbor, currentWaitTick);
+            else if(rule === 'cannotOccupySameCell') {
+                if (goal.cannotOccupySameCell && (goal.occupiedCells.has(neighbor) || goal.previouslyOccupiedCells.has(neighbor)))
+                    return false;
+            }
+        }
+        return true;
     }
 
     reconstructPath(end, waits) {
