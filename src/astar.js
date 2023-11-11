@@ -397,7 +397,7 @@ export class AStarSolver {
                 const cell = this.maze.cells[y][x];
                 
                 // If the cell has g and f values, use them to create a gradient
-                if (typeof cell.g !== 'undefined' && typeof cell.f !== 'undefined' && this.maxF > 0) {
+                if (typeof cell.g !== 'undefined' && cell.g > 0 && typeof cell.f !== 'undefined' && this.maxF > 0) {
                     // Normalize the f value using a power scale for better differentiation
                     // Adjust the exponent based on desired sensitivity (e.g., 0.5 for square root scaling)
                     const exponent = 0.999; // Can be adjusted for more or less sensitivity
