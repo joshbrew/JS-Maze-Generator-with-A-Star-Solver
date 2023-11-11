@@ -4,6 +4,7 @@ import { AStarSolver } from './astar';
 export class MazeGame {
 
     static activeGame;
+    static pressedKeys = new Set();
 
     maze; canvas; context; strokeStyle; solver; cellSize; 
 
@@ -80,32 +81,67 @@ export class MazeGame {
         // Ensure there is an active game
         if (!MazeGame.activeGame) return;
 
-        // Apply controls to the active game
-        const { maze, context, cellSize, strokeStyle, onPlayerCollision } = MazeGame.activeGame;
-        switch(event.key) {
-            case 'ArrowUp':
-            case 'w':
+        event.preventDefault();
+        // Update the set of currently pressed keys
+        MazeGame.pressedKeys.add(event.key);
+
+        const keypressLoop = ()=>{
+            if(MazeGame.pressedKeys.has(event.key)) {
+                MazeGame.keyPressCheck(event);
+                setTimeout(keypressLoop,200);
+            }
+        }
+
+        setTimeout(keypressLoop,1500)
+
+    }
+
+    static keyPressCheck = (event) => {
+        // Check for diagonal movement combinations and orthogonal movements
+        const { maze, onPlayerCollision, context, cellSize, strokeStyle } = MazeGame.activeGame;
+        let moved = false;
+        if (MazeGame.pressedKeys.has('w') || MazeGame.pressedKeys.has('ArrowUp')) {
+            if (MazeGame.pressedKeys.has('d') || MazeGame.pressedKeys.has('ArrowRight')) {
+                event.preventDefault();
+                maze.movePlayer('upRight', 0, onPlayerCollision);
+            } else if (MazeGame.pressedKeys.has('a') || MazeGame.pressedKeys.has('ArrowLeft')) {
+                event.preventDefault();
+                maze.movePlayer('upLeft', 0, onPlayerCollision);
+            } else {
                 event.preventDefault();
                 maze.movePlayer('up', 0, onPlayerCollision);
-                break;
-            case 'ArrowDown':
-            case 's':
+            }
+            moved = true;
+        } else if (MazeGame.pressedKeys.has('s') || MazeGame.pressedKeys.has('ArrowDown')) {
+            if (MazeGame.pressedKeys.has('d') || MazeGame.pressedKeys.has('ArrowRight')) {
+                event.preventDefault();
+                maze.movePlayer('downRight', 0, onPlayerCollision);
+            } else if (MazeGame.pressedKeys.has('a') || MazeGame.pressedKeys.has('ArrowLeft')) {
+                event.preventDefault();
+                maze.movePlayer('downLeft', 0, onPlayerCollision);
+            } else {
                 event.preventDefault();
                 maze.movePlayer('down', 0, onPlayerCollision);
-                break;
-            case 'ArrowLeft':
-            case 'a':
-                event.preventDefault();
-                maze.movePlayer('left', 0, onPlayerCollision);
-                break;
-            case 'ArrowRight':
-            case 'd':
-                event.preventDefault();
-                maze.movePlayer('right', 0, onPlayerCollision);
-                break;
+            }
+            moved = true;
+        } else if (MazeGame.pressedKeys.has('a') || MazeGame.pressedKeys.has('ArrowLeft')) {
+            event.preventDefault();
+            maze.movePlayer('left', 0, onPlayerCollision);
+            moved = true;
+        } else if (MazeGame.pressedKeys.has('d') || MazeGame.pressedKeys.has('ArrowRight')) {
+            event.preventDefault();
+            maze.movePlayer('right', 0, onPlayerCollision);
+            moved = true;
         }
         // Redraw the maze after moving the player
-        maze.draw(context, cellSize, strokeStyle);
+        if(moved) maze.draw(context, cellSize, strokeStyle);
+    }
+
+    static keyUpHandler(event) {
+        if (MazeGame.activeGame) {
+            MazeGame.keyPressCheck(event);
+            MazeGame.pressedKeys.delete(event.key);
+        }
     }
 
     showPath = () => {
@@ -122,7 +158,7 @@ export class MazeGame {
             const intervalInput = document.getElementById(this.intervalInputId);
             const interval = intervalInput ? parseFloat(intervalInput.value) * 1000 : 1000;
             const ai = this.maze.addPlayer(this.maze.start.x, this.maze.start.y, undefined, 1);
-            this.solver.solve(ai.cell.x, ai.cell.y, this.maze.end.x, this.maze.end.y);
+            this.solver.solve(ai.cell.x, ai.cell.y, this.maze.end.x, this.maze.end.y, this.maze.allowDiagonal);
             this.solver.playMoves(interval, 1, this.context, this.cellSize, this.strokeStyle, onGoalReached, drawPath, drawPlayerPath);
             this.racing = true;
         

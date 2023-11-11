@@ -25,7 +25,8 @@ function generateMazeUI(
   rows,
   use3D=false,
   drawFiddleHeads=false, 
-  strokeStyle
+  strokeStyle,
+  allowDiagonal=false
 ) {
   // Generate unique identifiers for DOM elements
   const uniqueId = Math.random().toString(36).substring(2, 9);
@@ -52,7 +53,7 @@ function generateMazeUI(
   `);
 
   // Set up the maze, the solver, and the game logic for this maze game
-  const maze = new Maze(cellsPerRow, rows, generatorFunction); 
+  const maze = new Maze(cellsPerRow, rows, generatorFunction, undefined, undefined, allowDiagonal); 
   if(drawFiddleHeads) maze.drawFiddleHeads = drawFiddleHeads;
   const aStarSolver = new AStarSolver(maze);
   const mazeGame = new MazeGame(maze, `canvas-${uniqueId}`, aStarSolver, strokeStyle);
@@ -126,14 +127,14 @@ generateMazeUI('Hunt & Kill', generateHuntAndKillMaze, 20, 20, true, undefined, 
 generateMazeUI('Depth First Multipath', generateMultiPathDepthFirstMaze, 20, 20);
 generateMazeUI('Sidewinder', generateSidewinderMaze, 20, 20);
 generateMazeUI('Ellers', generateEllersMaze, 20, 20);
-generateMazeUI('Hunt & Kill w/ Braids', generateHuntAndKillWithBraidsMaze, 20, 20);
+generateMazeUI('Hunt & Kill w/ Braids Octagonal', generateHuntAndKillWithBraidsMaze, 20, 20, false, false, undefined, true);
 generateMazeUI('No Dead Ends', noDeadEnds, 20, 20, false, true, 'brown'); 
 generateMazeUI('Spiraling', noDeadEndsSpiral, 100, 100); 
 // Add more calls to `generateMazeUI` for additional mazes as needed.
 
 //setup key events
 document.addEventListener('keydown', MazeGame.keyDownHandler);
-
+document.addEventListener('keyup', MazeGame.keyUpHandler);
 
 
 // document.body.insertAdjacentHTML('beforeend', `

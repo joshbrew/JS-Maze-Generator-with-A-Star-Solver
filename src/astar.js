@@ -28,7 +28,7 @@ export class AStarSolver {
         startY = this.maze.start.y,
         endX = this.maze.end.x,
         endY = this.maze.end.y,
-        allowDiagonal = false,
+        allowDiagonal = this.maze.allowDiagonal,
         maxWaitTicks=5 //maximum wait period before aborting
     ) => {
 
@@ -63,7 +63,7 @@ export class AStarSolver {
             }
     
             let hasValidMove = false;
-            for (let neighbor of this.maze.getReachableNeighbors(current)) {
+            for (let neighbor of this.maze.getReachableNeighbors(current, allowDiagonal)) {
                 if (closedSet.has(neighbor)) continue;
     
                 neighbor = this.initializeCell(neighbor);

@@ -37,27 +37,47 @@ export class Maze {
         down: { dx: 0, dy: 1, wallDirection: 'down', opposite: 'up' }
     };
 
+    //octagonal (diagonal) grid
+    directionsOct = {
+        up: { dx: 0, dy: -1, wallDirection: 'up', opposite: 'down' },
+        upRight: { dx: 1, dy: -1, wallDirection: 'upRight', opposite: 'downLeft' },
+        right: { dx: 1, dy: 0, wallDirection: 'right', opposite: 'left' },
+        downRight: { dx: 1, dy: 1, wallDirection: 'downRight', opposite: 'upLeft' },
+        down: { dx: 0, dy: 1, wallDirection: 'down', opposite: 'up' },
+        downLeft: { dx: -1, dy: 1, wallDirection: 'downLeft', opposite: 'upRight' },
+        left: { dx: -1, dy: 0, wallDirection: 'left', opposite: 'right' },
+        upLeft: { dx: -1, dy: -1, wallDirection: 'upLeft', opposite: 'downRight' }
+    }
+
     width; height; generator; onWin;
     cells = [];
     players = {};
     visitedCells = {};// Rolling buffer to store the last 10 visited cells
     playerPathLength = 10; //e.g. store the last 10 visited cells
 
-    playerDirections = [['down', 'left'], ['up', 'right']];
-
     drawFiddleHeads = false;
 
-    constructor(width, height, generateMazeFunction, onWin, seed) {
-        if(seed) {this.seed.set(seed);}
-        this.generateMaze(width,height, generateMazeFunction, onWin);
+    allowDiagonal=false; //allow diagonal movement/generation
+    
+    //todo: cleanup
+    constructor(
+        width, 
+        height, 
+        generateMazeFunction, 
+        onWin, 
+        seed,
+        allowDiagonal
+    ) {
+        if(height && width && generateMazeFunction) this.generateMaze(width, height, generateMazeFunction, onWin, seed, allowDiagonal);
     }
 
-    generateMaze(width, height, generateMazeFunction, onWin, seed) {
+    generateMaze(width, height, generateMazeFunction, onWin, seed, allowDiagonal) {
         if(width) this.width = width;
         if(height) this.height = height;
         if(generateMazeFunction) this.generator = generateMazeFunction;
         if(onWin) this.onWin = onWin; // Store the win callback
         if(seed) {this.seed.set(seed);}
+        if(allowDiagonal) this.allowDiagonal = allowDiagonal;
         console.time(`genMaze ${this.generator.name}`);
 
         if(this.cells.length > 0) { //hard reset
@@ -84,14 +104,14 @@ export class Maze {
         }
   
         if (typeof this.generator === 'function') {
-            this.generator(this, this.seed);
+            this.generator(this, this.seed, this.allowDiagonal);
         }
         console.timeEnd(`genMaze ${this.generator.name}`);
     }
  
     getDirectionKey(dx, dy) {
     
-        for (const [key, value] of Object.entries(this.directions)) {
+        for (const [key, value] of Object.entries(this.directionsOct)) {
             if (value.dx === dx && value.dy === dy) {
                 return key;
             }
@@ -101,12 +121,18 @@ export class Maze {
     }
         
     getWallDirection(dx, dy) {
-        // Translate directional changes into wall directions
+        // Translate directional changes into wall directions for orthogonal directions
         if (dx === 0 && dy === -1) return 'up';
         if (dx === 1 && dy === 0) return 'right';
         if (dx === 0 && dy === 1) return 'down';
         if (dx === -1 && dy === 0) return 'left';
-        
+    
+        // Translate directional changes into wall directions for diagonal directions
+        if (dx === 1 && dy === -1) return 'upRight';
+        if (dx === 1 && dy === 1) return 'downRight';
+        if (dx === -1 && dy === 1) return 'downLeft';
+        if (dx === -1 && dy === -1) return 'upLeft';
+    
         // Return null if the input doesn't match any known direction.
         // This can be a signal that something unexpected has occurred.
         return null;
@@ -122,17 +148,10 @@ export class Maze {
         return null;
     }
       
-    getNeighbors(cell) {
+    getNeighbors(cell, allowDiagonal=false) {
         const neighbors = [];
-        const x = cell.x;
-        const y = cell.y;
-        
-        // Iterate over all possible directions
-        for (const key in this.directions) {
-            const { dx, dy } = this.directions[key];
-            const neighbor = this.getCell(x + dx, y + dy);
-            
-            // Add the neighbor to the list if it exists and has not been visited
+        for (const direction in (allowDiagonal ? this.directionsOct : this.directions)) {
+            const neighbor = this.getNeighbor(cell, direction);
             if (neighbor) {
                 neighbors.push(neighbor);
             }
@@ -141,61 +160,36 @@ export class Maze {
     }
 
 
+
     //get a neighbor in a specific direction, if any
     getNeighbor(cell, direction) {
         const x = cell.x;
         const y = cell.y;
-        if(!this.directions[direction]) return;
-        const { dx, dy } = this.directions[direction];
-        const neighbor = this.getCell(x + dx, y + dy);
+        if(!this.directionsOct[direction]) return;
+        const neighbor = this.getCell(
+            x + this.directionsOct[direction].dx, 
+            y + this.directionsOct[direction].dy
+        );
         
         if (neighbor) {
             return neighbor;
         }
     }
 
-    getUnvisitedNeighbors(cell) {
-        const neighbors = [];
-        const x = cell.x;
-        const y = cell.y;
-        
-        // Iterate over all possible directions
-        for (const key in this.directions) {
-            const { dx, dy } = this.directions[key];
-            const neighbor = this.getCell(x + dx, y + dy);
-            
-            // Add the neighbor to the list if it exists and has not been visited
-            if (neighbor && !neighbor.visited) {
-                neighbors.push(neighbor);
-            }
-        }
-        return neighbors;
+    getUnvisitedNeighbors(cell, allowDiagonal=false) {
+        return this.getNeighbors(cell, allowDiagonal).filter(neighbor => !neighbor.visited);
+    }
+    
+    getVisitedNeighbors(cell, allowDiagonal=false) {
+        return this.getNeighbors(cell, allowDiagonal).filter(neighbor => neighbor.visited);
     }
 
-    getVisitedNeighbors(cell) {
-        const neighbors = [];
-        const x = cell.x;
-        const y = cell.y;
-        
-        // Iterate over all possible directions
-        for (const key in this.directions) {
-            const { dx, dy } = this.directions[key];
-            const neighbor = this.getCell(x + dx, y + dy);
-            
-            // Add the neighbor to the list if it exists and has been visited
-            if (neighbor && neighbor.visited) {
-                neighbors.push(neighbor);
-            }
-        }
-        return neighbors;
-    }
-
-    getReachableNeighbors(cell) {
+    getReachableNeighbors(cell, allowDiagonal=false) {
         const neighbors = [];
       
         // Iterate over all possible directions
-        for (const direction in this.directions) {
-            const { dx, dy, wallDirection, opposite } = this.directions[direction];
+        for (const direction in (allowDiagonal ? this.directionsOct : this.directions)) {
+            const { dx, dy, wallDirection, opposite } = this.directionsOct[direction];
             const x = cell.x + dx;
             const y = cell.y + dy;
       
@@ -218,6 +212,10 @@ export class Maze {
           case 'right': return 'left';
           case 'up': return 'down';
           case 'down': return 'up';
+          case 'upRight': return 'downLeft';
+          case 'downLeft': return 'upRight';
+          case 'upLeft': return 'downRight';
+          case 'downRight': return 'upLeft';
           default: return null;
         }
     }
@@ -235,28 +233,22 @@ export class Maze {
     }
 
     //connect all neighbors
-    connectNeighbors(cell,direction) {
-        if(direction) {
-            let neighbor = this.getNeighbor(cell,direction);
-            if(neighbor) cell.connect(neighbor);
+    connectNeighbors(cell, direction, allowDiagonal=false) {
+        if (direction) {
+            let neighbor = this.getNeighbor(cell, direction);
+            if (neighbor) cell.connect(neighbor);
         } else {
-            let neighbors = this.getNeighbors(cell);
-            neighbors.forEach((n) => {
-                cell.connect(n);
-            });
+            this.getNeighbors(cell, allowDiagonal).forEach(neighbor => cell.connect(neighbor));
         }
     }
 
     //connect all neighbors
-    disconnectNeighbors(cell,direction) {
-        if(direction) {
-            let neighbor = this.getNeighbor(cell,direction);
-            if(neighbor) cell.disconnect(neighbor);
+    disconnectNeighbors(cell, direction, allowDiagonal) {
+        if (direction) {
+            let neighbor = this.getNeighbor(cell, direction);
+            if (neighbor) cell.disconnect(neighbor);
         } else {
-            let neighbors = this.getNeighbors(cell);
-            neighbors.forEach((n) => {
-                cell.disconnect(n);
-            });
+            this.getNeighbors(cell, allowDiagonal).forEach(neighbor => cell.disconnect(neighbor));
         }
     }
 
@@ -325,7 +317,7 @@ export class Maze {
     }
 
     //removes any 3 or 4-sided cells
-    removeDeadEnds = function(fromCenter=false) { //fromCenter will create a spiral pattern and remove center cells
+    removeDeadEnds = (fromCenter=false, allowDiagonal) => { //fromCenter will create a spiral pattern and remove center cells
 
         if(fromCenter) {
             // Find the center of the maze
@@ -369,8 +361,8 @@ export class Maze {
                 if (x >= 0 && x < this.cells[0].length && y >= 0 && y < this.cells.length) {
                     const cell = this.cells[y][x];
                     if (cell.isDeadEnd()) {
-                        let neighbors = this.getVisitedNeighbors(cell);
-                        if(neighbors.length < 1) neighbors = this.getUnvisitedNeighbors(cell);
+                        let neighbors = this.getVisitedNeighbors(cell, allowDiagonal);
+                        if(neighbors.length < 1) neighbors = this.getUnvisitedNeighbors(cell, allowDiagonal);
                         // Randomly select a neighbor to connect to and remove the wall
                         // Filter neighbors to ensure they keep the path to the center
                         neighbors = neighbors.filter(neighbor => {
@@ -400,7 +392,7 @@ export class Maze {
                 ];
                 centers.forEach(([x, y]) => {
                     this.cells[y][x].visited = true;
-                    this.getNeighbors(this.cells[y][x]).forEach(neighbor => {
+                    this.getNeighbors(this.cells[y][x], allowDiagonal).forEach(neighbor => {
                         this.connect(this.cells[y][x], neighbor);
                     });
                 });
@@ -408,7 +400,7 @@ export class Maze {
                 // Odd dimensions: make sure the central cell is connected
                 const centerCell = this.cells[centerY][centerX];
                 centerCell.visited = true;
-                this.getNeighbors(centerCell).forEach(neighbor => {
+                this.getNeighbors(centerCell, allowDiagonal).forEach(neighbor => {
                     this.connect(centerCell, neighbor);
                 });
             }
@@ -418,8 +410,8 @@ export class Maze {
             this.cells.forEach(row => {
                 row.forEach((cell) => {
                     if (cell.isDeadEnd()) {
-                        let neighbors = this.getVisitedNeighbors(cell);
-                        if(neighbors.length < 1) neighbors = this.getUnvisitedNeighbors(cell);
+                        let neighbors = this.getVisitedNeighbors(cell, allowDiagonal);
+                        if(neighbors.length < 1) neighbors = this.getUnvisitedNeighbors(cell, allowDiagonal);
                         // Randomly select a neighbor to connect to and remove the wall
                         const neighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
                         this.connect(cell, neighbor);
@@ -470,7 +462,7 @@ export class Maze {
     movePlayer(direction, playerIndex, onCollision = (player, wallDirection, playerIndex) => {
         console.log("There's a wall in the way!", player, wallDirection, playerIndex)
     }) {
-        const { dx, dy } = typeof direction === 'object' ? direction : this.directions[direction]; //input {dx,dy} or "up"/"down"/"left"/"right"
+        const { dx, dy } = typeof direction === 'object' ? direction : this.directionsOct[direction]; //input {dx,dy} or "up"/"down"/"left"/"right"
         
         const currentCell = this.players[playerIndex].cell;
         const newX = currentCell.x + dx;
@@ -559,9 +551,10 @@ export class Maze {
                     cell.draw(
                         context, 
                         size, 
+                        strokeStyle,
+                        this.allowDiagonal,
                         this.drawFiddleHeads, 
-                        this.seed, 
-                        strokeStyle
+                        this.seed
                     );
                 }
             }
@@ -587,85 +580,95 @@ export class MazeCell {
     visited = false; // A flag to indicate whether this cell has been visited during maze generation
     id = Math.random();
       // All cells start with all walls intact
-    walls = { up: true, right: true, down: true, left: true };
+    walls = { up: true, right: true, down: true, left: true, upRight:true, upLeft:true, downRight:true, downLeft:true }; //octagonal coordinates
     
     // Constructor to initialize a cell at (x, y) coordinates
     constructor(x, y) {
-      // Storing the x and y coordinates
-      this.x = x;
-      this.y = y;
-  
+        // Storing the x and y coordinates
+        this.x = x;
+        this.y = y;
     }
   
     // Method to remove walls between this cell and another cell
     connect(cell) {
-      // If the cells are in the same row
-      if (this.y === cell.y) {
-        // If this cell is to the right of the other cell
-        if (this.x > cell.x) {
-            this.walls.left = false;
-            cell.walls.right = false;
-        }
-        // If this cell is to the left of the other cell
-        else if (this.x < cell.x) {
-            this.walls.right = false;
-            cell.walls.left = false;
-        }
-      }
-      // If the cells are in the same column
-      else if (this.x === cell.x) {
-        // If this cell is below the other cell
-        if (this.y > cell.y) {
-            this.walls.up = false;
-            cell.walls.down = false;
-        }
-        // If this cell is above the other cell
-        else if (this.y < cell.y) {
-            this.walls.down = false;
-            cell.walls.up = false;
-        }
-      }
-  
-      // Mark both cells as visited (for generating)
-      this.visited = true;
-      cell.visited = true;
-    }
-
-    disconnect(cell) {
-        // If the cells are in the same row
         if (this.y === cell.y) {
-            // If this cell is to the right of the other cell
+            if (this.x > cell.x) {
+                this.walls.left = false;
+                cell.walls.right = false;
+            } else if (this.x < cell.x) {
+                this.walls.right = false;
+                cell.walls.left = false;
+            }
+        } else if (this.x === cell.x) {
+            if (this.y > cell.y) {
+                this.walls.up = false;
+                cell.walls.down = false;
+            } else if (this.y < cell.y) {
+                this.walls.down = false;
+                cell.walls.up = false;
+            }
+        } else {
+            // Diagonal connection logic
+            if (this.x < cell.x && this.y < cell.y) {
+                this.walls.downRight = false;
+                cell.walls.upLeft = false;
+            } else if (this.x > cell.x && this.y < cell.y) {
+                this.walls.downLeft = false;
+                cell.walls.upRight = false;
+            } else if (this.x < cell.x && this.y > cell.y) {
+                this.walls.upRight = false;
+                cell.walls.downLeft = false;
+            } else if (this.x > cell.x && this.y > cell.y) {
+                this.walls.upLeft = false;
+                cell.walls.downRight = false;
+            }
+        }
+    
+        this.visited = true;
+        cell.visited = true;
+    }
+    
+    // Method to add walls between this cell and another cell
+    disconnect(cell) {
+        if (this.y === cell.y) {
             if (this.x > cell.x) {
                 this.walls.left = true;
                 cell.walls.right = true;
-            }
-            // If this cell is to the left of the other cell
-            else if (this.x < cell.x) {
+            } else if (this.x < cell.x) {
                 this.walls.right = true;
                 cell.walls.left = true;
             }
-        }
-        // If the cells are in the same column
-        else if (this.x === cell.x) {
-            // If this cell is below the other cell
+        } else if (this.x === cell.x) {
             if (this.y > cell.y) {
                 this.walls.up = true;
                 cell.walls.down = true;
-            }
-            // If this cell is above the other cell
-            else if (this.y < cell.y) {
+            } else if (this.y < cell.y) {
                 this.walls.down = true;
                 cell.walls.up = true;
             }
+        } else {
+            // Diagonal disconnection logic
+            if (this.x < cell.x && this.y < cell.y) {
+                this.walls.downRight = true;
+                cell.walls.upLeft = true;
+            } else if (this.x > cell.x && this.y < cell.y) {
+                this.walls.downLeft = true;
+                cell.walls.upRight = true;
+            } else if (this.x < cell.x && this.y > cell.y) {
+                this.walls.upRight = true;
+                cell.walls.downLeft = true;
+            } else if (this.x > cell.x && this.y > cell.y) {
+                this.walls.upLeft = true;
+                cell.walls.downRight = true;
+            }
         }
-
-        // Mark both cells as visited (for generating)
+    
         this.visited = true;
         cell.visited = true;
     }
 
     hasAllWalls() {
-        return this.walls.up && this.walls.right && this.walls.down && this.walls.left;
+        return this.walls.up && this.walls.right && this.walls.down && this.walls.left && this.walls.upRight && this.walls.downRight && this.walls.downLeft && this.walls.upLeft;
     }
   
     // Method to mark this cell as the starting point
@@ -699,53 +702,113 @@ export class MazeCell {
       this.clearPath();
     }
 
+    drawSquareCell = (context, size, strokeStyle='blue', fiddleheads, seed) => {
+        
+        if (this.isStart || this.isEnd) {
+            context.fillStyle = this.isStart ? 'green' : this.isEnd ? 'red' : 'blue';
+            context.fillRect(this.x * size, this.y * size, size, size);
+          }
+  
+          if(fiddleheads) { //just a joke feature
+              if (this.walls.up) {
+                  drawWallWithSpirals(context, size, this.x * size, this.y * size, (this.x + 1) * size, this.y * size, 'up', seed, strokeStyle);
+              }
+              if (this.walls.right) {
+                  drawWallWithSpirals(context, size, (this.x + 1) * size, this.y * size, (this.x + 1) * size, (this.y + 1) * size, 'right', seed, strokeStyle);
+              }
+              if (this.walls.down) {
+                  drawWallWithSpirals(context, size, (this.x + 1) * size, (this.y + 1) * size, this.x * size, (this.y + 1) * size, 'down', seed, strokeStyle);
+              }
+              if (this.walls.left) {
+                  drawWallWithSpirals(context, size, this.x * size, (this.y + 1) * size, this.x * size, this.y * size, 'left', seed, strokeStyle);
+              }
+          }
+          else {
+              // Drawing the walls of the cell
+              context.strokeStyle = strokeStyle;
+              context.beginPath();
+              if (this.walls.up) {
+                  context.moveTo(this.x * size, this.y * size);
+                  context.lineTo((this.x + 1) * size, this.y * size);
+              }
+              if (this.walls.right) {
+                  context.moveTo((this.x + 1) * size, this.y * size);
+                  context.lineTo((this.x + 1) * size, (this.y + 1) * size);
+              }
+              if (this.walls.down) {
+                  context.moveTo((this.x + 1) * size, (this.y + 1) * size);
+                  context.lineTo(this.x * size, (this.y + 1) * size);
+              }
+              if (this.walls.left) {
+                  context.moveTo(this.x * size, (this.y + 1) * size);
+                  context.lineTo(this.x * size, this.y * size);
+              }
+              context.stroke();
+          }
+    }
+
+    drawOctagonalCell(context, size, strokeStyle) {
+        // Calculate diagonal offset for drawing diagonal walls
+        const diagonalOffset = size / (2 * Math.sqrt(2)); // Half diagonal of a square of side 'size'
+    
+        // If the cell is marked as the start or end, fill it with a color
+        if (this.isStart || this.isEnd) {
+            context.fillStyle = this.isStart ? 'green' : this.isEnd ? 'red' : 'blue';
+            context.fillRect(this.x * size, this.y * size, size, size);
+        }
+    
+        context.strokeStyle = strokeStyle;
+        context.beginPath();
+    
+        // Drawing orthogonal walls
+        if (this.walls.up) {
+            context.moveTo(this.x * size + diagonalOffset, this.y * size);
+            context.lineTo((this.x + 1) * size - diagonalOffset, this.y * size);
+        }
+        if (this.walls.right) {
+            context.moveTo((this.x + 1) * size, this.y * size + diagonalOffset);
+            context.lineTo((this.x + 1) * size, (this.y + 1) * size - diagonalOffset);
+        }
+        if (this.walls.down) {
+            context.moveTo((this.x + 1) * size - diagonalOffset, (this.y + 1) * size);
+            context.lineTo(this.x * size + diagonalOffset, (this.y + 1) * size);
+        }
+        if (this.walls.left) {
+            context.moveTo(this.x * size, (this.y + 1) * size - diagonalOffset);
+            context.lineTo(this.x * size, this.y * size + diagonalOffset);
+        }
+    
+        // Drawing diagonal walls
+        if (this.walls.upRight) {
+            context.moveTo((this.x + 1) * size - diagonalOffset, this.y * size);
+            context.lineTo((this.x + 1) * size, this.y * size + diagonalOffset);
+        }
+        if (this.walls.downRight) {
+            context.moveTo((this.x + 1) * size, (this.y + 1) * size - diagonalOffset);
+            context.lineTo((this.x + 1) * size - diagonalOffset, (this.y + 1) * size);
+        }
+        if (this.walls.downLeft) {
+            context.moveTo(this.x * size + diagonalOffset, (this.y + 1) * size);
+            context.lineTo(this.x * size, (this.y + 1) * size - diagonalOffset);
+        }
+        if (this.walls.upLeft) {
+            context.moveTo(this.x * size, this.y * size + diagonalOffset);
+            context.lineTo(this.x * size + diagonalOffset, this.y * size);
+        }
+    
+        context.stroke();
+    }
+
     // Method to draw the cell and its walls on a canvas context
-    draw(context, size, fiddleheads = false, seed, strokeStyle='blue') {
+    draw(context, size, strokeStyle='blue', allowDiagonal=false, fiddleheads = false, seed) {
         // If the cell is marked as the start or end, fill it with a color
 
-        if (this.isStart || this.isEnd) {
-          context.fillStyle = this.isStart ? 'green' : this.isEnd ? 'red' : 'blue';
-          context.fillRect(this.x * size, this.y * size, size, size);
-        }
-
-        if(fiddleheads) { //just a joke feature
-            if (this.walls.up) {
-                drawWallWithSpirals(context, size, this.x * size, this.y * size, (this.x + 1) * size, this.y * size, 'up', seed, strokeStyle);
-            }
-            if (this.walls.right) {
-                drawWallWithSpirals(context, size, (this.x + 1) * size, this.y * size, (this.x + 1) * size, (this.y + 1) * size, 'right', seed, strokeStyle);
-            }
-            if (this.walls.down) {
-                drawWallWithSpirals(context, size, (this.x + 1) * size, (this.y + 1) * size, this.x * size, (this.y + 1) * size, 'down', seed, strokeStyle);
-            }
-            if (this.walls.left) {
-                drawWallWithSpirals(context, size, this.x * size, (this.y + 1) * size, this.x * size, this.y * size, 'left', seed, strokeStyle);
-            }
-        }
-        else {
-            // Drawing the walls of the cell
-            context.strokeStyle = strokeStyle;
-            context.beginPath();
-            if (this.walls.up) {
-                context.moveTo(this.x * size, this.y * size);
-                context.lineTo((this.x + 1) * size, this.y * size);
-            }
-            if (this.walls.right) {
-                context.moveTo((this.x + 1) * size, this.y * size);
-                context.lineTo((this.x + 1) * size, (this.y + 1) * size);
-            }
-            if (this.walls.down) {
-                context.moveTo((this.x + 1) * size, (this.y + 1) * size);
-                context.lineTo(this.x * size, (this.y + 1) * size);
-            }
-            if (this.walls.left) {
-                context.moveTo(this.x * size, (this.y + 1) * size);
-                context.lineTo(this.x * size, this.y * size);
-            }
-            context.stroke();
+        if(allowDiagonal) {
+            this.drawOctagonalCell(context, size, strokeStyle);
+        } else {
+            this.drawSquareCell(context, size, strokeStyle, fiddleheads, seed)
         }
     }
-    
 }
 
 const randomNumSpirals = (seed) => Math.floor(seed.random() * 4) + 1; // Random number of spirals, between 1 and 6

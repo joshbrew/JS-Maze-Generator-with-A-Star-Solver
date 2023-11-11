@@ -1,6 +1,6 @@
 # Maze generator and game template with A* solver
 
-Interactive maze generator with start/end goals, multiple players, an A* solver for pathfinding.
+Interactive maze generator with start/end goals, multiple players, an A* solver for pathfinding. Includes octagonal coordinates with a simple boolean, works in all maze solvers and the A* solver too.
 
 Maze examples:
 - Depth First Search
@@ -8,13 +8,16 @@ Maze examples:
 - Depth First with random path joining (easy mode)
 - Sidewinder
 - Ellers
-- Hunt & Kill with Braids
+- Hunt & Kill with Braids (set to octagonal/diagonal mode)
 - Remove random dead ends till no more 3 or 4 sided cells.
 - Remove random dead ends in a spiral from the center (always solvable).
+
 
 Also a simple BabylonJS render with instanced static meshes. Needs to be threaded with better culling for actual use. 
 
 Lots of comments in the code for explaining.
+
+- A* does single and multiagent pathfidning, multiagent allows e.g. for setting avoidance/wait rules for each other on each pass.
 
 # Run Example
 
@@ -27,6 +30,7 @@ Run: `npm i -g tinybuild` the `npm start` or `tinybuild`
 ![cap3](./screenshots/Capture3.PNG)
 ![cap4](./screenshots/Capture4.PNG)
 ![cap5](./screenshots/Capture5.PNG)
+![cap6](./screenshots/Capture6.PNG)
 
 
 # Usage
