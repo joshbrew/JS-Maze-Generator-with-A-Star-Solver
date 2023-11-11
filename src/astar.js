@@ -135,6 +135,8 @@ export class AStarSolver {
                 delete unfinishedKeys[key];
                 delete unfinishedGoals[key];
             }
+            this.starts[key] = starts[key]
+            this.ends[key] = ends[key];
 
             if(!agentHasAvoidanceRule && goals[key].cannotOccupySameCell) agentHasAvoidanceRule = true;
             waitTicks[key] = 0;
@@ -247,19 +249,23 @@ export class AStarSolver {
         return path.reverse();
     }
 
-    reset() {
+    reset(multiagent=false) {
         this.openSet.reset();
         function withCell(cell) { //reset heuristics
             if('g' in cell) {cell.h = 0; cell.f = 0; cell.g = 0;}
             if(cell.heuristics) cell.heuristics = {};
         }
-        this.closedSet.forEach(withCell);
-        this.closedSet.clear();
-        for(const key in this.closedSets) { //clear these if doing multiangle
-            this.closedSets[key].forEach(withCell);
-            this.closedSets[key].clear();
+        if(multiagent) {
+            for(const key in this.closedSets) { //clear these if doing multiagent
+                this.closedSets[key].forEach(withCell);
+                this.closedSets[key].clear();
+            }
+            this.paths = {};
+        } else {
+            this.closedSet.forEach(withCell);
+            this.closedSet.clear();
+            this.path.length = 0;
         }
-        this.path.length = 0;
         this.start = this.maze.start;
         this.end = this.maze.end;
 
