@@ -28,7 +28,7 @@ With latest NodeJS LTS installed. Open this folder in the command line (e.g. via
 
 Run: `npm i -g tinybuild` the `npm start` or `tinybuild`
 
-![vid](./screenshots/solver.mp4)
+![vid](https://github.com/joshbrew/JS-Maze-Generator-with-A-Star-Solver/blob/34194d3340f2fdebe6212bccacbe1e5f6c5a2881/screenshots/solver.mp4)
 ![cap](./screenshots/Capture.PNG)
 ![cap2](./screenshots/Capture2.PNG)
 ![cap3](./screenshots/Capture3.PNG)
