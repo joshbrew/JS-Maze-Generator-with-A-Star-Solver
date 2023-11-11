@@ -2,6 +2,8 @@
 
 Interactive maze generator with start/end goals, multiple players, an A* solver for pathfinding. Includes octagonal coordinates with a simple boolean, works in all maze solvers and the A* solver too.
 
+### [Live Demo](https://astarmazesolver.netlify.app/)
+
 Maze examples:
 - Depth First Search
 - Hunt & Kill
