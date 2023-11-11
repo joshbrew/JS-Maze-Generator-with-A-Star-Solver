@@ -401,14 +401,15 @@ export class AStarSolver {
                     // Normalize the f value using a power scale for better differentiation
                     // Adjust the exponent based on desired sensitivity (e.g., 0.5 for square root scaling)
                     const exponent = 0.999; // Can be adjusted for more or less sensitivity
-                    const normalizedCost = Math.abs(Math.log(Math.pow(cell.f / this.maxF, exponent)));
+                    const normalizedCost = Math.pow(cell.f / this.maxF, exponent);
+
                     // Adjust hue value based on the normalized cost
-                    const hue = normalizedCost * (720); // Range from 120 (green) to 240 (blue)
+                    const hue = normalizedCost * (440); // Range from 120 (green) to 240 (blue)
                     // Adjust opacity based on the normalized cost
-                    const opacity = Math.min(1, 1-normalizedCost * 2+0.3); // Ensuring opacity is at most 1
+                    const opacity = Math.min(1, normalizedCost+0.1); // Ensuring opacity is at most 1
 
                     // Use HSLA for coloring
-                    context.fillStyle = `hsla(${hue+50}, 100%, 50%, ${opacity})`;
+                    context.fillStyle = `hsla(${hue}, 100%, 50%, ${opacity})`;
                     context.fillRect(cell.x * size, cell.y * size, size, size);
                 }
     
