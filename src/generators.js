@@ -341,12 +341,12 @@ export function generateHuntAndKillWithBraidsMaze(maze, seed, allowDiagonal) {
 }
 
 export function noDeadEnds(maze,seed,allowDiagonal) {
-    if(seed) maze.seed.set(seed.initialSeed)
+    if(seed) maze.seed.set(seed.randF)
     maze.removeDeadEnds(false,allowDiagonal);
 }
 
 export function noDeadEndsSpiral(maze,seed,allowDiagonal) {
-    if(seed) maze.seed.set(seed.initialSeed)
+    if(seed) maze.seed.set(seed.randF)
     maze.removeDeadEnds(true,allowDiagonal);
 }
 

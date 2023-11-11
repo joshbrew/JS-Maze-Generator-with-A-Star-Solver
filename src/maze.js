@@ -49,6 +49,9 @@ export class Maze {
         upLeft: { dx: -1, dy: -1, wallDirection: 'upLeft', opposite: 'downRight' }
     }
 
+    directionsKeys = Object.keys(this.directions)
+    directionsOctKeys = Object.keys(this.directionsOct);
+
     width; height; generator; onWin;
     cells = [];
     players = {};
@@ -149,8 +152,9 @@ export class Maze {
     }
       
     getNeighbors(cell, allowDiagonal=false) {
-        const neighbors = [];
-        for (const direction in (allowDiagonal ? this.directionsOct : this.directions)) {
+        const neighbors = []; 
+        const keys = (allowDiagonal ? this.directionsOctKeys : this.directionsKeys);
+        for (const direction of keys) {
             const neighbor = this.getNeighbor(cell, direction);
             if (neighbor) {
                 neighbors.push(neighbor);
@@ -188,7 +192,8 @@ export class Maze {
         const neighbors = [];
       
         // Iterate over all possible directions
-        for (const direction in (allowDiagonal ? this.directionsOct : this.directions)) {
+        const keys = (allowDiagonal ? this.directionsOctKeys : this.directionsKeys);
+        for (const direction of keys) {
             const { dx, dy, wallDirection, opposite } = this.directionsOct[direction];
             const x = cell.x + dx;
             const y = cell.y + dy;
