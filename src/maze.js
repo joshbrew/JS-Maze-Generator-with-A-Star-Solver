@@ -699,7 +699,7 @@ export class MazeCell {
     reset() {
       this.isStart = false;
       this.isEnd = false;
-      this.clearPath();
+      this.isPath = false;
     }
 
     drawSquareCell = (context, size, strokeStyle='blue', fiddleheads, seed) => {
