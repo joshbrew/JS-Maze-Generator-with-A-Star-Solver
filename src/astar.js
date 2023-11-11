@@ -50,13 +50,14 @@ export class AStarSolver {
         openSet.push(this.start, this.start.f);
     
         let waitTicks = 0;
+        let waits = {};
 
         while (!openSet.isEmpty()) {
             let current = openSet.pop();
             closedSet.add(current);
 
             if (current === this.end) {
-                this.path = this.reconstructPath(current);
+                this.path = this.reconstructPath(current, waits);
                 console.timeEnd('astar');
                 return this.path;
             }
@@ -86,6 +87,9 @@ export class AStarSolver {
             // If no valid move is found, wait in the current cell
             if (!hasValidMove && waitTicks < maxWaitTicks) {
                 waitTicks++;
+                if(!(current.id in waits)) waits[current.id] = 0;
+                waits[current.id]++; // Increment wait count for the current cell
+                
                 openSet.push(current, current.f + 1); // Re-add current cell with a higher cost
                 closedSet.delete(current); // Remove current cell from closed set for reconsideration
             }
@@ -117,7 +121,7 @@ export class AStarSolver {
         let unfinishedGoals = Object.values(goals);
 
         let agentHasAvoidanceRule = false;
-        let waitTicks = {};
+        let waitTicks = {}; let waits = {};
 
         for(const key in goals) {
             if(!this.openSets[key]) this.openSets[key] = new PriorityQueue();
@@ -134,6 +138,7 @@ export class AStarSolver {
 
             if(!agentHasAvoidanceRule && goals[key].cannotOccupySameCell) agentHasAvoidanceRule = true;
             waitTicks[key] = 0;
+            waits[key] = {};
         }
 
         let allEmpty = false;
@@ -152,7 +157,7 @@ export class AStarSolver {
                     if(agentHasAvoidanceRule) occupiedCells.add(current);
 
                     if (current === this.end) {
-                        this.paths[key] = this.reconstructPath(current);
+                        this.paths[key] = this.reconstructPath(current, waits[key]);
                         delete unfinishedGoals[key];
                         delete unfinishedKeys[key];
                         if(unfinishedKeys.length === 0) allEmpty = true;
@@ -196,6 +201,9 @@ export class AStarSolver {
                     // If no valid move is found, and cannotOccupySameCell rule applies, wait in the current cell
                     if (!hasValidMove && waitTicks[key] < maxWaitTicks) {
                         waitTicks[key]++;
+                        if(!waits[key][current.id]) waits[key][current.id] = 0;
+                        waits[key][current.id]++; // Increment wait count for the current cell
+                        
                         //console.log(`agent ${key} is waiting at ${current.x,current.y}`)
                         this.openSets[key].push(current, current.heuristics[key].f + 1); // Re-add current cell with a higher cost
                         this.closedSets[key].delete(current); // Remove current cell from closed set for reconsideration
@@ -228,10 +236,12 @@ export class AStarSolver {
         return cell;
     }
 
-    reconstructPath(current) {
+    reconstructPath(end, waits) {
+        let current = end;
         let path = [];
         while (current) {
             path.push(current);
+            if(waits?.[current.id]) { for(let i = 0; i < waits[current.id]; i++) { path.push(current); }}
             current = current.previous;
         }
         return path.reverse();
