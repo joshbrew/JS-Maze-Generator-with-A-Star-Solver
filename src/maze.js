@@ -3,23 +3,23 @@
 class SeededRandom {
     constructor(seed) {
         if(!seed) seed = Date.now()*0.0001;
-        this.seed = seed;
+        this.randF = seed;
         this.initialSeed = seed;
         this.e = Math.E;
     }
 
     set(seed) {
-        this.seed = seed;
+        this.randF = seed;
         this.initialSeed = seed;
     }
   
     reset() {
-      this.seed = this.initialSeed;
+      this.randF = this.initialSeed;
     }
   
     random() {
-      this.seed += this.e;
-      const x = 1000000000*Math.sin(this.seed);
+      this.randF += this.e;
+      const x = 1000000000*Math.sin(this.randF);
       return x - Math.floor(x);
     }
   }
@@ -537,6 +537,8 @@ export class Maze {
         context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 
         // Draw color trails first
+        let lastSeed = this.seed.randF;
+        this.seed.randF = this.seed.initialSeed;
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
                 const cell = this.cells[y][x];
@@ -564,6 +566,7 @@ export class Maze {
                 }
             }
         }
+        this.seed.randF = lastSeed;
     }
 
     replaceAlphaInRgba(rgbaString, newAlpha) {
@@ -699,6 +702,7 @@ export class MazeCell {
     // Method to draw the cell and its walls on a canvas context
     draw(context, size, fiddleheads = false, seed, strokeStyle='blue') {
         // If the cell is marked as the start or end, fill it with a color
+
         if (this.isStart || this.isEnd) {
           context.fillStyle = this.isStart ? 'green' : this.isEnd ? 'red' : 'blue';
           context.fillRect(this.x * size, this.y * size, size, size);
