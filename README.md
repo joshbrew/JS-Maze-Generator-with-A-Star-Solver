@@ -34,7 +34,7 @@ Run: `npm i -g tinybuild` the `npm start` or `tinybuild`
 ![cap4](./screenshots/Capture4.PNG)
 ![cap5](./screenshots/Capture5.PNG)
 ![cap6](./screenshots/Capture6.PNG)
-![cap7](./screenshots/Capture7.PNG)
+![cap7](./screenshots/Cap7.PNG)
 
 
 # Usage
