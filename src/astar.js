@@ -402,10 +402,8 @@ export class AStarSolver {
                     // Adjust the exponent based on desired sensitivity (e.g., 0.5 for square root scaling)
                     const exponent = 0.999; // Can be adjusted for more or less sensitivity
                     const normalizedCost = Math.abs(Math.log(Math.pow(cell.f / this.maxF, exponent)));
-                    console.log(normalizedCost)
                     // Adjust hue value based on the normalized cost
                     const hue = normalizedCost * (720); // Range from 120 (green) to 240 (blue)
-                    console.log(hue)
                     // Adjust opacity based on the normalized cost
                     const opacity = Math.min(1, 1-normalizedCost * 2+0.3); // Ensuring opacity is at most 1
 
