@@ -127,7 +127,7 @@ generateMazeUI('Hunt & Kill', generateHuntAndKillMaze, 20, 20, true, undefined, 
 generateMazeUI('Depth First Multipath', generateMultiPathDepthFirstMaze, 20, 20);
 generateMazeUI('Sidewinder', generateSidewinderMaze, 20, 20);
 generateMazeUI('Ellers', generateEllersMaze, 20, 20);
-generateMazeUI('Hunt & Kill w/ Braids Octagonal', generateHuntAndKillWithBraidsMaze, 20, 20, false, false, undefined, true);
+generateMazeUI('Hunt & Kill w/ Braids Octagonal', generateHuntAndKillWithBraidsMaze, 20, 20, false, false, 'magenta', true);
 generateMazeUI('No Dead Ends', noDeadEnds, 20, 20, false, true, 'brown'); 
 generateMazeUI('Spiraling', noDeadEndsSpiral, 100, 100); 
 // Add more calls to `generateMazeUI` for additional mazes as needed.
