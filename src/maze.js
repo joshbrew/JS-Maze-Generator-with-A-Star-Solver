@@ -163,8 +163,6 @@ export class Maze {
         return neighbors;
     }
 
-
-
     //get a neighbor in a specific direction, if any
     getNeighbor(cell, direction) {
         const x = cell.x;
@@ -317,8 +315,12 @@ export class Maze {
         this.setEnd(endX, endY);
     }
 
-    connect(cell1, cell2) {
-        cell1.connect(cell2);
+    connect(cell1, cell2, neighbors=true) {
+        cell1.connect(cell2, neighbors);
+    }
+
+    disconnect(cell1, cell2, neighbors=true) {
+        cell1.disconnect(cell2, neighbors);
     }
 
     //removes any 3 or 4-sided cells
@@ -365,7 +367,7 @@ export class Maze {
                 // Ensure x and y are within bounds
                 if (x >= 0 && x < this.cells[0].length && y >= 0 && y < this.cells.length) {
                     const cell = this.cells[y][x];
-                    if (cell.isDeadEnd()) {
+                    if (cell.isDeadEnd(allowDiagonal)) {
                         let neighbors = this.getVisitedNeighbors(cell, allowDiagonal);
                         if(neighbors.length < 1) neighbors = this.getUnvisitedNeighbors(cell, allowDiagonal);
                         // Randomly select a neighbor to connect to and remove the wall
@@ -414,7 +416,7 @@ export class Maze {
         else {
             this.cells.forEach(row => {
                 row.forEach((cell) => {
-                    if (cell.isDeadEnd()) {
+                    if (cell.isDeadEnd(allowDiagonal)) {
                         let neighbors = this.getVisitedNeighbors(cell, allowDiagonal);
                         if(neighbors.length < 1) neighbors = this.getUnvisitedNeighbors(cell, allowDiagonal);
                         // Randomly select a neighbor to connect to and remove the wall
@@ -580,6 +582,8 @@ export class Maze {
 }
 
 let wallKeys = ['up', 'right', 'down', 'left'];
+let wallKeysOct = ['up', 'right', 'down', 'left', 'upRight', 'upLeft', 'downRight', 'downLeft'];
+
 
 //object representation of a maze cell in an xy grid
 export class MazeCell {
@@ -589,7 +593,8 @@ export class MazeCell {
     id = Math.random();
       // All cells start with all walls intact
     walls = { up: true, right: true, down: true, left: true, upRight:true, upLeft:true, downRight:true, downLeft:true }; //octagonal coordinates
-    
+    connections = {}; //more general connection structure
+
     // Constructor to initialize a cell at (x, y) coordinates
     constructor(x, y) {
         // Storing the x and y coordinates
@@ -598,26 +603,25 @@ export class MazeCell {
     }
   
     // Method to remove walls between this cell and another cell
-    connect(cell) {
-        if (this.y === cell.y) {
-            if (this.x > cell.x) {
-                this.walls.left = false;
-                cell.walls.right = false;
-            } else if (this.x < cell.x) {
-                this.walls.right = false;
-                cell.walls.left = false;
-            }
-        } else if (this.x === cell.x) {
-            if (this.y > cell.y) {
-                this.walls.up = false;
-                cell.walls.down = false;
-            } else if (this.y < cell.y) {
-                this.walls.down = false;
-                cell.walls.up = false;
-            }
-        } else {
-            // Diagonal connection logic
-            if (this.x < cell.x && this.y < cell.y) {
+    connect(cell, neighbors=true) {
+        if(neighbors) { //assuming adjacency
+            if (this.y === cell.y) {
+                if (this.x > cell.x) {
+                    this.walls.left = false;
+                    cell.walls.right = false;
+                } else if (this.x < cell.x) {
+                    this.walls.right = false;
+                    cell.walls.left = false;
+                }
+            } else if (this.x === cell.x) {
+                if (this.y > cell.y) {
+                    this.walls.up = false;
+                    cell.walls.down = false;
+                } else if (this.y < cell.y) {
+                    this.walls.down = false;
+                    cell.walls.up = false;
+                }
+            } else if (this.x < cell.x && this.y < cell.y) {
                 this.walls.downRight = false;
                 cell.walls.upLeft = false;
             } else if (this.x > cell.x && this.y < cell.y) {
@@ -630,6 +634,9 @@ export class MazeCell {
                 this.walls.upLeft = false;
                 cell.walls.downRight = false;
             }
+        } else { //abstract connections
+            cell.connections[this.id] = true;
+            this.connections[cell.id] = true;
         }
     
         this.visited = true;
@@ -637,26 +644,25 @@ export class MazeCell {
     }
     
     // Method to add walls between this cell and another cell
-    disconnect(cell) {
-        if (this.y === cell.y) {
-            if (this.x > cell.x) {
-                this.walls.left = true;
-                cell.walls.right = true;
-            } else if (this.x < cell.x) {
-                this.walls.right = true;
-                cell.walls.left = true;
-            }
-        } else if (this.x === cell.x) {
-            if (this.y > cell.y) {
-                this.walls.up = true;
-                cell.walls.down = true;
-            } else if (this.y < cell.y) {
-                this.walls.down = true;
-                cell.walls.up = true;
-            }
-        } else {
-            // Diagonal disconnection logic
-            if (this.x < cell.x && this.y < cell.y) {
+    disconnect(cell, neighbors=true) {
+        if(neighbors) { //assuming adjacency
+            if (this.y === cell.y) {
+                if (this.x > cell.x) {
+                    this.walls.left = true;
+                    cell.walls.right = true;
+                } else if (this.x < cell.x) {
+                    this.walls.right = true;
+                    cell.walls.left = true;
+                }
+            } else if (this.x === cell.x) {
+                if (this.y > cell.y) {
+                    this.walls.up = true;
+                    cell.walls.down = true;
+                } else if (this.y < cell.y) {
+                    this.walls.down = true;
+                    cell.walls.up = true;
+                }
+            } else if (this.x < cell.x && this.y < cell.y) {
                 this.walls.downRight = true;
                 cell.walls.upLeft = true;
             } else if (this.x > cell.x && this.y < cell.y) {
@@ -669,6 +675,9 @@ export class MazeCell {
                 this.walls.upLeft = true;
                 cell.walls.downRight = true;
             }
+        } else { //abstract connections
+            delete cell.connections[this.id];
+            delete this.connections[cell.id];
         }
     
         this.visited = true;
@@ -699,8 +708,9 @@ export class MazeCell {
       this.isPath = false;
     }
   
-    isDeadEnd() {
-        return wallKeys.filter((k) => this.walls[k]).length > 2;
+    isDeadEnd(allowDiagonal) {
+        if(allowDiagonal) return wallKeysOct.filter((k) => this.walls[k]).length > 4; //5 or more sides on an 8 sided cell
+        return wallKeys.filter((k) => this.walls[k]).length > 2; //3 or more sides on a 4 sided cell
     }
 
     // Method to reset the cell's special states (start, end, path)
