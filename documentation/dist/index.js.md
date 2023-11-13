@@ -1,3 +1,0 @@
-Certainly! As soon as you provide me with the source code of an application or library, I will begin documenting it in Markdown format. The documentation will cover aspects such as the purpose of the code, its functionality, usage examples, configurations, and any other relevant information that a developer might need to understand and work with the codebase effectively.
-
-Please provide the first file or set of files for which you require documentation, and specify any particular details you would like to be included or emphasized within the documentation.
