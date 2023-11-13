@@ -1,3 +1,5 @@
+(GPT 4-turbo generated)
+
 # Mazes: The Interactive Maze Solver 🚀
 
 Welcome to **Mazes**, an interactive maze solver experience that lets you generate, solve, and navigate through a variety of mazes. Whether you're a maze enthusiast, a developer looking for a pathfinding solution, or someone who wants to tinker with maze algorithms, this project is for you!
