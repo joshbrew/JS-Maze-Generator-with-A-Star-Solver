@@ -65,6 +65,4 @@ Whether it's improving the algorithms, enhancing the UI, or fixing a bug, your c
 
 Happy Maze Solving! 🎉
 
-![Maze Solver](https://astarmazesolver.netlify.app)
-
 *Lose yourself in the paths less traveled, only to find your way with **Mazes**!*
