@@ -749,14 +749,15 @@ export class MazeCell {
                   context.moveTo(this.x * size, this.y * size);
                   context.lineTo((this.x + 1) * size, this.y * size);
               }
-              if (this.walls.right) {
-                  context.moveTo((this.x + 1) * size, this.y * size);
-                  context.lineTo((this.x + 1) * size, (this.y + 1) * size);
-              }
-              if (this.walls.down) {
-                  context.moveTo((this.x + 1) * size, (this.y + 1) * size);
-                  context.lineTo(this.x * size, (this.y + 1) * size);
-              }
+              //redundant
+            //   if (this.walls.right) {
+            //       context.moveTo((this.x + 1) * size, this.y * size);
+            //       context.lineTo((this.x + 1) * size, (this.y + 1) * size);
+            //   }
+            //   if (this.walls.down) {
+            //       context.moveTo((this.x + 1) * size, (this.y + 1) * size);
+            //       context.lineTo(this.x * size, (this.y + 1) * size);
+            //   }
               if (this.walls.left) {
                   context.moveTo(this.x * size, (this.y + 1) * size);
                   context.lineTo(this.x * size, this.y * size);

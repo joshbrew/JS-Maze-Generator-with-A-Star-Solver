@@ -584,3 +584,80 @@ class PriorityQueue { //w/ binary heap structure
         this.elementIndices[node.element.id] = n;
     }
 }
+
+
+
+
+export class IDAStarSolver {
+    maze; start; end;
+    path = [];
+    searched = {};
+
+    maxNodeVisits; // Maximum number of nodes to visit
+    currentVisits; // Current number of visited nodes
+
+    constructor(maze, maxNodeVisits = 10000) {
+        this.maze = maze;
+        this.start = maze.start;
+        this.end = maze.end;
+        this.maxNodeVisits = maxNodeVisits;
+        this.currentVisits = 0;
+    }
+
+    solve(start=this.start,end=this.end) {
+        let threshold = this.heuristic(start, end);
+        while (true) {
+            this.currentVisits = 0; // Reset the visit count for each depth limit
+            const [found, temp] = this.search(start, end, 0, threshold);
+            if (found) {
+                return this.path; // Found the path
+            }
+            if (temp === Infinity || this.currentVisits >= this.maxNodeVisits) {
+                return []; // No path found or visit limit exceeded
+            }
+            threshold = temp;
+        }
+    }
+
+    search(node, end, g, threshold) {
+        if (this.currentVisits >= this.maxNodeVisits) {
+            return [false, Infinity]; // Stop the search if visit limit is reached
+        }
+
+        this.currentVisits++;
+        this.searched[node.id] = node;
+        let f = g + this.heuristic(node, end);
+        if (f > threshold) return [false, f];
+        if (node === end) {
+            this.path = this.reconstructPath(node);
+            return [true, null];
+        }
+        let min = Infinity;
+        for (const neighbor of this.maze.getReachableNeighbors(node)) {
+            if (neighbor.id in this.searched) continue; // Avoid cycles
+            neighbor.previous = node;
+            const [found, temp] = this.search(neighbor, end, g + 1, threshold);
+            if (found) return [true, null];
+            if (temp < min) min = temp;
+        }
+        return [false, min];
+    }
+
+    reconstructPath(end) {
+        let current = end;
+        let path = [];
+        while (current) {
+            path.push(current);
+            current = current.previous;
+        }
+        return path.reverse();
+    }
+
+    heuristic(node1, node2) {
+        // Implement your heuristic function here
+        // For example, using Manhattan distance for grid-based pathfinding
+        return Math.abs(node1.x - node2.x) + Math.abs(node1.y - node2.y);
+    }
+
+
+}
