@@ -1,4 +1,5 @@
 //constructor requres a Maze() class
+import { FlowGraphRoundNumberBlock } from 'babylonjs/index';
 import {Maze} from './maze'
 
 //Solvers handle one goal at a time
@@ -230,6 +231,8 @@ export class AStarSolver {
 
         do { //we are updating everyone on the same step or up till their goal is reached so we can have concurrent planning
             if(agentHasAvoidanceRule) occupiedCells.clear();
+
+            let i = 0;
             for (const key of unfinishedKeys) { 
                 if (!this.openSets[key].isEmpty()) {
                     const goal = goals[key];
@@ -242,7 +245,7 @@ export class AStarSolver {
                     if (current === this.end) {
                         this.paths[key] = this.reconstructPath(current, waits[key]);
                         delete unfinishedGoals[key];
-                        delete unfinishedKeys[key];
+                        unfinishedKeys.splice(i,1);
                         if(unfinishedKeys.length === 0) allEmpty = true;
                         continue;
                     }
@@ -293,7 +296,7 @@ export class AStarSolver {
                             this.paths[key] = this.reconstructPath(current, waits[key]);
                             //console.log(`Goal for ${key} is currently unreachable.`);
                             delete unfinishedGoals[key];
-                            delete unfinishedKeys[key];
+                            unfinishedKeys.splice(i,1);
                             if(unfinishedKeys.length === 0) allEmpty = true;
                         }
                     }
@@ -301,9 +304,10 @@ export class AStarSolver {
                 } else {
                     //console.log(`Goal for ${key} is currently unreachable.`);
                     delete unfinishedGoals[key];
-                    delete unfinishedKeys[key];
+                    unfinishedKeys.splice(i,1);
                     if(unfinishedKeys.length === 0) allEmpty = true;
                 }
+                i++;
             }
             if (agentHasAvoidanceRule) {
                 previouslyOccupiedCells.clear();
@@ -586,68 +590,197 @@ class PriorityQueue { //w/ binary heap structure
 }
 
 
-
-
 export class IDAStarSolver {
-    maze; start; end;
-    path = [];
+    maze;
+    starts = {};
+    ends = {};
+    paths = {};
     searched = {};
+    searchedCtrs = {};
+    bufferQueue = {};
 
-    maxNodeVisits; // Maximum number of nodes to visit
-    currentVisits; // Current number of visited nodes
+    currentVisits = {}; // Current number of visited nodes
 
-    constructor(maze, maxNodeVisits = 10000) {
+    constructor(
+        maze
+    ) {
         this.maze = maze;
-        this.start = maze.start;
-        this.end = maze.end;
-        this.maxNodeVisits = maxNodeVisits;
-        this.currentVisits = 0;
     }
 
-    solve(start=this.start,end=this.end) {
-        let threshold = this.heuristic(start, end);
-        while (true) {
-            this.currentVisits = 0; // Reset the visit count for each depth limit
-            const [found, temp] = this.search(start, end, 0, threshold);
-            if (found) {
-                return this.path; // Found the path
+    solveMultiple(
+        goals, //goals = { agent1:{startX,startY,endX,endY,rules:{cannotOccupySameCell:true,arbitrary:(maze, current, neighbor, f, g, currentWaitTicks)=>{if(condition) return false;}}}}
+        allowDiagonal = false, 
+        maxWaitTicks = 5,
+        maxNodeVisits = 10000
+    ) {
+        this.reset();
+
+        let starts = {};
+        let ends = {};
+        let unfinishedKeys = Object.keys(goals);
+        let agentHasAvoidanceRule = false;
+        let waitTicks = {};
+        let waits = {};
+        let previouslyOccupiedCells = new Set();
+        let occupiedCells = new Set();
+
+        for (const key in goals) {
+            starts[key] = this.maze.cells[goals[key].startY][goals[key].startX];
+            ends[key] = this.maze.cells[goals[key].endY][goals[key].endX];
+            this.paths[key] = [];
+            this.starts[key] = starts[key];
+            this.ends[key] = ends[key];
+            this.searched[key] = {};
+            this.searchedCtrs[key] = 0
+            this.currentVisits[key] = 0;
+
+            if (goals[key].rules && goals[key].rules.cannotOccupySameCell) {
+                agentHasAvoidanceRule = true;
             }
-            if (temp === Infinity || this.currentVisits >= this.maxNodeVisits) {
-                return []; // No path found or visit limit exceeded
+            waitTicks[key] = 0;
+            waits[key] = {};
+        }
+
+        let allEmpty = false;
+        do {
+            if (agentHasAvoidanceRule) occupiedCells.clear();
+
+            for (const key of unfinishedKeys) {
+                let threshold = this.heuristic(this.starts[key], this.ends[key]);
+                this.searched[key][start.id] = { node: start, g: 0, f: threshold, previous: null };
+                // Buffer queue to keep track of the order of nodes
+                this.bufferQueue[key] = [start.id];
+                let pathFound = false;
+                let waitIncreased = false;
+
+                while (!pathFound && this.currentVisits[key] < maxNodeVisits && !waitIncreased) {
+                    let [found, nextThreshold, lastNode] = this.iterativeSearch(this.starts[key], this.ends[key], allowDiagonal, threshold, key, goals[key].rules, occupiedCells, previouslyOccupiedCells, waitTicks[key]);
+                    
+                    if (found) {
+                        this.paths[key] = this.reconstructPath(lastNode, waits[key]);
+                        pathFound = true;
+                    } else if (nextThreshold === Infinity) {
+                        break; // No path found within current threshold
+                    } else {
+                        threshold = nextThreshold; // Increase threshold for next iteration
+                    }
+
+                    // Update waitTicks and occupiedCells
+                    if (!found && lastNode) {
+                        if (waitTicks[key] < maxWaitTicks) {
+                            waitTicks[key]++;
+                            if (!waits[key][lastNode.id]) waits[key][lastNode.id] = 0;
+                            waits[key][lastNode.id]++;
+                        } else {
+                            waitIncreased = true; // Max waitTicks reached, stop this agent
+                        }
+                    }
+
+                    // Update occupied cells after each agent's iteration
+                    if (agentHasAvoidanceRule) {
+                        previouslyOccupiedCells = new Set([...occupiedCells]);
+                        occupiedCells.clear();
+                    }
+                }
+
+                if (!pathFound || waitIncreased) {
+                    this.paths[key] = this.reconstructPath(lastNode, waits[key]);
+                    unfinishedKeys.splice(unfinishedKeys.indexOf(key), 1);
+                }
             }
-            threshold = temp;
-        }
+
+            allEmpty = unfinishedKeys.length === 0;
+        } while (!allEmpty);
+
+        return this.paths;
     }
 
-    search(node, end, g, threshold) {
-        if (this.currentVisits >= this.maxNodeVisits) {
-            return [false, Infinity]; // Stop the search if visit limit is reached
+    iterativeSearch(start, end, allowDiagonal, threshold, key, rules, occupiedCells, previouslyOccupiedCells, currentWaitTicks) {
+        let openSet = new Set([start]);
+        let nextThreshold = Infinity;
+        let lastNode = null;
+    
+        // Initialize the start node for this agent's search
+        this.currentVisits[key] = 0;
+    
+    
+        while (openSet.size > 0) {
+            let currentNode = null;
+            let minF = Infinity;
+    
+            // Find the node with the lowest f value
+            for (let node of openSet) {
+                let nodeData = this.searched[key][node.id];
+                if (nodeData.f < minF) {
+                    minF = nodeData.f;
+                    currentNode = node;
+                }
+            }
+    
+            if (currentNode === end) {
+                return [true, threshold, currentNode]; // Path found
+            }
+    
+            openSet.delete(currentNode);
+            occupiedCells.add(currentNode); // Mark current node as occupied
+    
+            for (const neighbor of this.maze.getReachableNeighbors(currentNode, allowDiagonal)) {
+                if (previouslyOccupiedCells.has(neighbor) || occupiedCells.has(neighbor) || 
+                    (rules && !this.applyRules(this.maze, rules, currentNode, neighbor, f, g, currentWaitTicks, occupiedCells, previouslyOccupiedCells))) {
+                    continue;
+                }
+    
+                let g = this.searched[key][currentNode.id].g + 1;
+                let f = g + this.heuristic(neighbor, end);
+    
+                if (f > threshold) {
+                    nextThreshold = Math.min(nextThreshold, f);
+                    continue;
+                }
+    
+                if (!this.searched[key][neighbor.id] || g < this.searched[key][neighbor.id].g) {
+                    // Update path and cost
+                    this.searched[key][neighbor.id] = { node: neighbor, g: g, f: f, previous: currentNode };
+                    openSet.add(neighbor);
+                    this.searchedCtrs[key]++;
+                    this.bufferQueue[key].push(neighbor.id); // Add new node to the buffer queue
+                }
+            }
+    
+            lastNode = currentNode;
+            this.currentVisits[key]++;
+            if (this.currentVisits[key] >= maxNodeVisits) break; // Check for max visits
+    
+            // Manage memory for the searched nodes
+            if (this.searchedCtrs[key] > (rules?.memoryLimit || 100)) {
+                // Remove the oldest entry using the buffer queue
+                const oldestNode = this.bufferQueue[key].shift();
+                delete this.searched[key][oldestNode];
+                this.searchedCtrs[key]--;
+            }
         }
-
-        this.currentVisits++;
-        this.searched[node.id] = node;
-        let f = g + this.heuristic(node, end);
-        if (f > threshold) return [false, f];
-        if (node === end) {
-            this.path = this.reconstructPath(node);
-            return [true, null];
-        }
-        let min = Infinity;
-        for (const neighbor of this.maze.getReachableNeighbors(node)) {
-            if (neighbor.id in this.searched) continue; // Avoid cycles
-            neighbor.previous = node;
-            const [found, temp] = this.search(neighbor, end, g + 1, threshold);
-            if (found) return [true, null];
-            if (temp < min) min = temp;
-        }
-        return [false, min];
+    
+        return [false, nextThreshold, lastNode]; // No path found within threshold
     }
 
-    reconstructPath(end) {
+    applyRules(maze, rules, current, neighbor, f, g, currentWaitTicks, occupiedCells, previouslyOccupiedCells) {
+        for (const rule in rules) {
+            if (typeof rules[rule] === 'function') {
+                if (!rules[rule](maze, current, neighbor, f, g, currentWaitTicks)) return false;
+            } else if (rule === 'cannotOccupySameCell') {
+                if (occupiedCells.has(neighbor) || previouslyOccupiedCells.has(neighbor))
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    reconstructPath(end, waits) {
         let current = end;
         let path = [];
         while (current) {
             path.push(current);
+            if(waits?.[current.id]) { for(let i = 0; i < waits[current.id]; i++) { path.push(current); }}
             current = current.previous;
         }
         return path.reverse();
@@ -655,9 +788,16 @@ export class IDAStarSolver {
 
     heuristic(node1, node2) {
         // Implement your heuristic function here
-        // For example, using Manhattan distance for grid-based pathfinding
         return Math.abs(node1.x - node2.x) + Math.abs(node1.y - node2.y);
     }
 
-
+    reset() {
+        this.searched = {};
+        this.starts = {};
+        this.ends = {};
+        this.paths = {};
+        this.searched = {}
+        this.searchedCtrs = {};
+        this.bufferQueue = {};
+    }
 }
