@@ -20,6 +20,7 @@ Also a simple BabylonJS render with instanced static meshes. Needs to be threade
 Lots of comments in the code for explaining.
 
 - A* does single and multiagent pathfinding, multiagent allows e.g. for setting avoidance/wait rules for each other on each pass.
+- Also a funky IDA* implementation (see maze 3), it only keeps a self-trimming open set that helps keep memory overhead low. 
 - Includes a search visualization, note the canvas stuff is not efficient but it's plenty fast for demoing.
 
 # Run Example
