@@ -1,5 +1,5 @@
 import {Maze} from './maze'
-import { AStarSolver } from './astar';
+import { AStarSolver, IDAStarSolver } from './astar';
 
 export class MazeGame {
 
@@ -13,7 +13,7 @@ export class MazeGame {
     
     racing = false;
 
-    constructor(maze, canvas, solver, strokeStyle='blue', playerColor={r:255,b:255,g:0}) {
+    constructor(maze, canvas, solver, strokeStyle='blue', playerColor={r:255,b:255,g:0}, randomAgents=false, randomAgentCount=10) {
         this.maze = maze;
         if(typeof canvas === 'string') {
             canvas = document.getElementById(canvas);
@@ -208,4 +208,128 @@ export class MazeGame {
         // Update the race button text
         document.getElementById(this.raceButtonId).innerText = "Race AI";
     }
+
+    //random agents going to/from random start and end points using the group navigation
+    startTraffic = (randomAgentCount=10, allowDiagonal, delay=300) => {
+    
+        let solver = new IDAStarSolver(this.maze)// : new AStarSolver(this.maze); //todo refactor astar solver to have same loop delay logic
+        
+        let goals = {};
+        
+        for(let i = 2; i < randomAgentCount+2; i++) {
+            let {startX, startY, endX, endY} = this.maze.getRandomStartAndEnd();
+            this.maze.setPlayer(startX,startY,i,'rgba(0,255,0,1)');
+            goals[i] = {startX,startY,endX,endY};//, rules:{cannotOccupySameCell:true}};
+        }
+        this.maze.draw(this.context,this.cellSize,this.strokeStyle);
+
+        solver.solveMultiple(
+            goals,
+            allowDiagonal,
+            10,
+            (
+                key, 
+                path, 
+                goal, 
+                searched, 
+                unfinishedGoals, 
+                occupiedCells, 
+                previouslyOccupiedCells
+            ) => {
+
+            },
+            (
+                goals, 
+                searched, 
+                unfinishedGoals, 
+                occupiedCells, 
+                previouslyOccupiedCells
+            ) => {
+
+                this.context.clearRect(0, 0, this.context.canvas.width, this.context.canvas.height);
+
+                for(const key in goals) {
+                    if(goals[key].currentNode) this.maze.setPlayer(goals[key].currentNode.x,goals[key].currentNode.y,key);
+                }
+
+                for(const i in searched) {
+                    for(const j in searched[i]) {
+                        const cell = searched[i][j];
+                        // If the cell has g and f values, use them to create a gradient
+                        if (typeof cell.g !== 'undefined' && cell.g > 0 && typeof cell.f !== 'undefined' && solver.maxF > 0) {
+                            // Normalize the f value using a power scale for better differentiation
+                            // Adjust the exponent based on desired sensitivity (e.g., 0.5 for square root scaling)
+                            const exponent = 0.999; // Can be adjusted for more or less sensitivity
+                            const normalizedCost = Math.pow(cell.f / solver.maxF, exponent);
+
+                            // Adjust hue value based on the normalized cost
+                            const hue = normalizedCost * (440); // Range from 120 (green) to 240 (blue)
+                            // Adjust opacity based on the normalized cost
+                            const opacity = Math.min(1, normalizedCost+0.1); // Ensuring opacity is at most 1
+
+                            // Use HSLA for coloring
+                            this.context.fillStyle = `hsla(${hue}, 100%, 50%, ${opacity})`;
+                            this.context.fillRect(cell.node.x * this.cellSize, cell.node.y * this.cellSize, this.cellSize, this.cellSize);
+                        }
+                    }
+                }    
+
+                this.maze.draw(this.context,this.cellSize,this.strokeStyle,undefined,false);
+
+                //console.log('step');
+            },
+            this.maze.width*this.maze.height,
+            delay
+        );
+
+
+        // const playMove = (
+        //     pathIdx = 0, playerIndex = 0, 
+        //     context, size, strokeColor, 
+        //     onGoalReached = (player, timestamp)=>{}, 
+        //     drawPath=false, drawPlayerPath=true
+        // ) => {
+        //     let move = this.paths[playerIndex];
+        //     let player = this.maze.players[playerIndex];
+        //     let dx = move.x - player.cell.x;
+        //     let dy = move.y - player.cell.y;
+        //     this.maze.movePlayer({ dx, dy }, playerIndex);
+        //     this.maze.draw(context, size, strokeColor, drawPlayerPath);
+        //     if(drawPath) this.drawPath(context, size);
+    
+        //     if (pathIdx === this.paths[playerIndex].length-1 && onGoalReached) {
+        //         onGoalReached();
+        //     }
+        // }
+    
+        // const playMoves = (
+        //     interval = 1000, playerIndex = 0, 
+        //     context, size, strokeColor, 
+        //     onGoalReached = (player, timestamp)=>{}, 
+        //     drawPath=false, drawPlayerPath=true
+        // ) => {
+        //     let i = 0;
+        //     let moves = this.path;
+    
+        //     this.interval = setInterval(() => {
+        //         if (i < moves.length) {
+        //             this.playMove(i, playerIndex, context, size, strokeColor, onGoalReached, drawPath, drawPlayerPath)
+        //             i++;
+        //         } else {
+        //             clearInterval(this.interval);
+        //         }
+        //     }, interval);
+        // }
+    }
+
+    stopTraffic(randomAgentCount=10) {
+
+        for(let i = 0; i < randomAgentCount; i++) {
+            this.maze.removePlayer(i+2);
+        }
+        this.maze.draw(this.context,this.cellSize,this.strokeStyle);
+
+    }
+
+
 }

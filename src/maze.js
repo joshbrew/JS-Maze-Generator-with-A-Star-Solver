@@ -90,12 +90,17 @@ export class Maze {
         for (let y = 0; y < this.height; y++) {
             let row = [];
             for (let x = 0; x < this.width; x++) {
-                row.push(new MazeCell(x, y));
+                row.push(new MazeCell(x, y, this));
             }
             this.cells.push(row);
         }
 
-        this.setRandomStartAndEnd();
+        let {
+            startX, startY, endX, endY
+        } = this.getRandomStartAndEnd();
+        this.setStart(startX, startY);
+        this.setEnd(endX, endY);
+
         if(Object.keys(this.players).length > 0) { //reset player positions
             for(const key in this.players) {
                 this.visitedCells[key] = [];
@@ -264,7 +269,11 @@ export class Maze {
             }
         }
         if(newGoal) {
-            this.setRandomStartAndEnd();
+            let {
+                startX, startY, endX, endY
+            } = this.getRandomStartAndEnd();
+            this.setStart(startX, startY);
+            this.setEnd(endX, endY);
             for(const key in this.players) {
                 this.visitedCells[key] = [];
                 this.setPlayer(this.start.x, this.start.y, key);
@@ -273,7 +282,7 @@ export class Maze {
     }
 
     //set start/end posts along different edges. Doesn't guarantee they aren't nearby.
-    setRandomStartAndEnd() {
+    getRandomStartAndEnd() {
         // Set a random starting point
         const startEdge = Math.floor(this.seed.random() * 4); // 0: up, 1: right, 2: down, 3: left
         let startX, startY;
@@ -290,7 +299,6 @@ export class Maze {
             startX = 0;
             startY = Math.floor(this.seed.random() * this.height);
         }
-        this.setStart(startX, startY);
         
         // Set a random ending point on a different edge
         let endEdge;
@@ -312,7 +320,10 @@ export class Maze {
             endX = 0;
             endY = Math.floor(this.seed.random() * this.height);
         }
-        this.setEnd(endX, endY);
+
+        return {
+            startX, startY, endX, endY
+        }
     }
 
     connect(cell1, cell2, neighbors=true) {
@@ -430,13 +441,13 @@ export class Maze {
 
     // Method to add a new player to the maze
     addPlayer(
-        x=this.start.x, y=this.start.y, 
+        x=this.start.x, 
+        y=this.start.y, 
         color={r:155*Math.random(),g:155*Math.random(),b:155*Math.random()}, 
         playerIndex
     ) {
         if(typeof playerIndex === 'undefined') playerIndex = Object.keys(this.players).length;
         const playerCell = this.getCell(x, y);
-        playerCell.setPath();
         this.players[playerIndex] = { cell: playerCell, color };  // Store the player along with their color
         this.visitedCells[playerIndex] = [];  // Initialize visitedCells for the new player
 
@@ -451,20 +462,22 @@ export class Maze {
     // Method to set the player's current position
     setPlayer(x, y, playerIndex, color) {
         if(typeof playerIndex === 'undefined' || !this.players[playerIndex]) {
-            this.addPlayer(x, y, undefined, playerIndex, color);
-            playerIndex = Object.keys(this.players).length - 1;
+            this.addPlayer(x, y, color, playerIndex);
+            if(typeof playerIndex === 'undefined') playerIndex = Object.keys(this.players).length - 1;
         }
         if (this.players[playerIndex]) {
-            this.players[playerIndex].cell.clearPath();
             if(color) this.players[playerIndex].color = color;
         }
         this.players[playerIndex].cell = this.getCell(x, y);
-        this.players[playerIndex].cell.setPath();
         this.recordVisit(this.players[playerIndex].cell, playerIndex);  // Record the cell visitation
 
         // Check for win condition
         this.checkWin();
     }
+
+    removePlayer(playerIndex=0) {
+        delete this.players[playerIndex];
+    } 
 
     movePlayer(direction, playerIndex, onCollision = (player, wallDirection, playerIndex) => {
         console.log("There's a wall in the way!", player, wallDirection, playerIndex)
@@ -485,9 +498,7 @@ export class Maze {
         // If there are no walls, update the player's position
         const newCell = this.getCell(newX, newY);
         if (newCell) {
-          currentCell.clearPath();
           this.players[playerIndex].cell = newCell;
-          newCell.setPath();
           this.recordVisit(newCell, playerIndex);  // Record the cell visitation
       
           // Check for win condition
@@ -531,9 +542,9 @@ export class Maze {
         }
     }
 
-    draw(context, size, strokeStyle='blue', drawPlayerPaths=true) {
+    draw(context, size, strokeStyle='blue', drawPlayerPaths=true, clear=true) {
 
-        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+        if(clear) context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 
         // Draw color trails first
         let lastSeed = this.seed.randF;
@@ -588,18 +599,19 @@ let wallKeysOct = ['up', 'right', 'down', 'left', 'upRight', 'upLeft', 'downRigh
 //object representation of a maze cell in an xy grid
 export class MazeCell {
     x; y; 
-    isStart; isPath; isEnd; 
+    isStart; isEnd; 
     visited = false; // A flag to indicate whether this cell has been visited during maze generation
     id = Math.random();
       // All cells start with all walls intact
     walls = { up: true, right: true, down: true, left: true, upRight:true, upLeft:true, downRight:true, downLeft:true }; //octagonal coordinates
     connections = {}; //more general connection structure
-
+    maze;
     // Constructor to initialize a cell at (x, y) coordinates
-    constructor(x, y) {
+    constructor(x, y, maze) {
         // Storing the x and y coordinates
         this.x = x;
         this.y = y;
+        this.maze = maze;
     }
   
     // Method to remove walls between this cell and another cell
@@ -698,16 +710,6 @@ export class MazeCell {
       this.isEnd = true;
     }
   
-    // Method to mark this cell as part of the player's path
-    setPath() {
-      this.isPath = true;
-    }
-  
-    // Method to clear this cell from being part of the player's path
-    clearPath() {
-      this.isPath = false;
-    }
-  
     isDeadEnd(allowDiagonal) {
         if(allowDiagonal) return wallKeysOct.filter((k) => this.walls[k]).length > 4; //5 or more sides on an 8 sided cell
         return wallKeys.filter((k) => this.walls[k]).length > 2; //3 or more sides on a 4 sided cell
@@ -749,15 +751,20 @@ export class MazeCell {
                   context.moveTo(this.x * size, this.y * size);
                   context.lineTo((this.x + 1) * size, this.y * size);
               }
-              //redundant
-            //   if (this.walls.right) {
-            //       context.moveTo((this.x + 1) * size, this.y * size);
-            //       context.lineTo((this.x + 1) * size, (this.y + 1) * size);
-            //   }
-            //   if (this.walls.down) {
-            //       context.moveTo((this.x + 1) * size, (this.y + 1) * size);
-            //       context.lineTo(this.x * size, (this.y + 1) * size);
-            //   }
+              
+              if(this.x === this.maze.width-1) {
+                if (this.walls.right) {
+                    context.moveTo((this.x + 1) * size, this.y * size);
+                    context.lineTo((this.x + 1) * size, (this.y + 1) * size);
+                }
+              }
+              if(this.y === this.maze.height - 1) {
+                if (this.walls.down) {
+                    context.moveTo((this.x + 1) * size, (this.y + 1) * size);
+                    context.lineTo(this.x * size, (this.y + 1) * size);
+                }
+              }
+
               if (this.walls.left) {
                   context.moveTo(this.x * size, (this.y + 1) * size);
                   context.lineTo(this.x * size, this.y * size);
