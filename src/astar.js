@@ -810,6 +810,7 @@ export class IDAStarSolver {
             return [true, threshold, currentNode, openSet]; // Path found
         }
 
+        openSet.delete(currentNode);
         let neighborsAdded = false;
         for (const neighbor of this.maze.getReachableNeighbors(currentNode, allowDiagonal)) {
             if((rules && !this.applyRules(this.maze, rules, currentNode, neighbor, currentNode.f, currentNode.g, currentWaitTicks, occupiedCells, previouslyOccupiedCells, key)))
@@ -826,13 +827,10 @@ export class IDAStarSolver {
                 } else {
                     nextThreshold = Math.min(nextThreshold, f);
                 }
-                // Backtrack if no neighbors added and openSet is empty
                 
             }
         }
 
-        if(!neighborsAdded)
-            openSet.delete(currentNode);
         
         if (!neighborsAdded && openSet.size === 0) {
             this.backtrackToLastNodeWithUnexploredNeighbors(currentNode, openSet, this.searched[key], this.maze, allowDiagonal, rules, occupiedCells, previouslyOccupiedCells, threshold, key);

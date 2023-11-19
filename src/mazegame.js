@@ -236,7 +236,7 @@ export class MazeGame {
                 occupiedCells, 
                 previouslyOccupiedCells
             ) => {
-
+                console.log("Agent",key,"reached goal");
             },
             (
                 goals, 
