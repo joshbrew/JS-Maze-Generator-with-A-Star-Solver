@@ -51,7 +51,17 @@ function generateMazeUI(
           Height (Y): <input id='${mazeType}Y-${uniqueId}' type='number' value='${rows}'/>
           <button id="gen${mazeType}-${uniqueId}">Generate Maze</button>
       </div>
-      <canvas id="canvas-${uniqueId}" style="width: 50%;" width="500" height="500"></canvas>
+      <div class="maze-container-center">
+        <div id="maze-container-${uniqueId}" class="maze-container">
+          <button id="up-${uniqueId}" class="arrow-btn up-btn">↑</button>
+          <div class="horizontal-buttons">
+            <button id="left-${uniqueId}" class="arrow-btn left-btn">←</button>
+            <canvas id="canvas-${uniqueId}" style="width: 50%;" width="500" height="500"></canvas>
+            <button id="right-${uniqueId}" class="arrow-btn right-btn">→</button>
+          </div>
+          <button id="down-${uniqueId}" class="arrow-btn down-btn">↓</button>
+        </div>
+      </div>
     </div>
   `);
 
@@ -64,7 +74,12 @@ function generateMazeUI(
 
   // Set up the input events for the AI and maze generator
   mazeGame.setAIInputEvents(`${mazeType}intv-${uniqueId}`, `${mazeType}solve-${uniqueId}`, `${mazeType}race-${uniqueId}`);
-  mazeGame.setGeneratorInputEvents(`gen${mazeType}-${uniqueId}`,`${mazeType}X-${uniqueId}`,`${mazeType}Y-${uniqueId}`, `${mazeType}animate-${uniqueId}`);
+  mazeGame.setGeneratorInputEvents(
+    `gen${mazeType}-${uniqueId}`,`${mazeType}X-${uniqueId}`,`${mazeType}Y-${uniqueId}`, `${mazeType}animate-${uniqueId}`,
+      `up-${uniqueId}`, `down-${uniqueId}`, `left-${uniqueId}`, `right-${uniqueId}`
+    );
+
+
 
   if(useTraffic) {
     mazeGame.startTraffic(
@@ -86,8 +101,8 @@ function generateMazeUI(
 
     // Calculate the initial offset based on the wall direction
     let offsetX = 0, offsetY = 0;
-    if (wallDirection === "top") offsetY = 1;
-    else if (wallDirection === "bottom") offsetY = -1;
+    if (wallDirection === "up") offsetY = 1;
+    else if (wallDirection === "down") offsetY = -1;
     else if (wallDirection === "left") offsetX = 1;
     else if (wallDirection === "right") offsetX = -1;
 
