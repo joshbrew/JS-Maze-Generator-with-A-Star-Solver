@@ -323,7 +323,7 @@ export class FlowField {
         const mouseY = (event.clientY - rect.top) * scaleY;
         const gridX = Math.floor(mouseX / cellSize);
         const gridY = Math.floor(mouseY / cellSize);
-
+        this.dots.forEach(dot => {dot.isSettled = false; dot.setGoal(gridX, gridY);});
         this.updateField(gridX, gridY);
         //this.visualize(canvas);
     }
@@ -436,19 +436,27 @@ export class FlowField {
         }
     }
 
+    // In your FlowField class, modify the updateDots method
     updateDots() {
-        for (let i = 0; i < this.dots.length; i++) {
-            const dot = this.dots[i];
-            dot.update(this);
+        const collisionRadius = 0.5; // Radius for checking collisions
+        const goalRadius = 2.0; // Radius for settling near the goal
+        const settleDelay = 100; // Delay (in frames) before a dot can settle
 
-            for (let j = i + 1; j < this.dots.length; j++) {
-                const otherDot = this.dots[j];
-                if (dot.collidesWith(otherDot)) {
+        // Update each dot
+        this.dots.forEach(dot => {
+            if (!dot.isSettled) {
+                dot.update(this);
+                dot.checkSettle(this.dots, collisionRadius, goalRadius, settleDelay);
+            }
+
+            // Check for collisions
+            for (let otherDot of this.dots) {
+                if (dot !== otherDot && dot.collidesWith(otherDot)) {
                     this.resolveElasticCollision(dot, otherDot);
                 }
             }
-        }
-    }
+        });
+}
 
     drawDots(ctx, cellSize) {
         this.dots.forEach(dot => dot.draw(ctx, cellSize));
@@ -508,6 +516,38 @@ class Dot {
         this.vx = 0; // Velocity in x-direction
         this.vy = 0; // Velocity in y-direction
         this.mass = mass;
+
+        this.isSettled = false; 
+        this.settleDelay = 5;
+    }
+
+    
+    // New method to set the goal coordinates
+    setGoal(goalX, goalY) {
+        this.goalX = goalX;
+        this.goalY = goalY;
+    }
+
+    // New method to check if the dot should settle
+    checkSettle(dots, settleRadius, goalRadius) {
+        if (this.isSettled) return; // Skip already settled dots
+
+        // Check if dot is close to the goal
+        const distanceToGoal = this.distanceTo(this.goalX, this.goalY);
+        if (distanceToGoal > goalRadius) return; // Only settle near the goal
+
+        // Check proximity to other dots
+        const closeDots = dots.filter(dot => this !== dot && this.distanceTo(dot.x, dot.y) < settleRadius);
+        if (closeDots.length > 0) {
+            this.isSettled = true;
+        }
+    }
+
+    // Helper method to calculate distance to another dot
+    distanceTo(x, y) {
+        const dx = this.x - x;
+        const dy = this.y - y;
+        return Math.sqrt(dx * dx + dy * dy);
     }
 
     update(flowField) {
