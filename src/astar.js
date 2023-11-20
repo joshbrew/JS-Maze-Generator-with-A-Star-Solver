@@ -1,5 +1,3 @@
-//constructor requres a Maze() class
-import {Maze} from './maze'
 
 //Solvers handle one goal at a time
 export class AStarSolver {
@@ -85,7 +83,7 @@ export class AStarSolver {
             
             if (!(neighbor.id in openSet.elementIndices) || tempG < neighbor.g) {
                 let tempF = tempG + (allowDiagonal ? this.heuristicDiag(neighbor, this.end) : this.heuristicGrid(neighbor, this.end));
-                if(rules && !this.applyRules(this.maze,rules,current, neighbor, tempG, tempF, this.waitTicks)) continue;
+                if(rules && !this.applyRules(this.maze, rules, current, neighbor, tempG, tempF, this.waitTicks)) continue;
 
                 hasValidMove = true; if(this.waitTicks) this.waitTicks = 0;
                 neighbor.g = tempG;
@@ -136,8 +134,25 @@ export class AStarSolver {
             else if(rule === 'cannotOccupySameCell') {
                 if (goal.cannotOccupySameCell && (goal.occupiedCells?.has(neighbor) || goal.previouslyOccupiedCells?.has(neighbor)))
                     return false;
+            } else if (rule === 'keys') {
+                //doors and keys, supply keys in the rules
+                if(neighbor.doors || current.doors) {
+                    let direction = maze.getDirection(current,neighbor);
+                    let opposite = maze.getOppositeDirection(direction);
+                    if(current.doors[direction] || neighbor.doors[opposite]) {
+                        if(current.doors[direction] !== 'open') {
+                            if(!((current.doors[direction] && rules?.keys?.[current.doors[direction]]) ||
+                                (neighbor.doors[opposite] && rules?.keys?.[current.doors[direction]]))) {
+                                    return false;
+                            } 
+                        } 
+                    }
+                }
             }
         }
+            
+       
+
         return true;
     }
 
@@ -329,7 +344,6 @@ export class AStarSolver {
     }
 
    
-
     heuristicGrid(cell1, cell2) { //A heuristic function for grid-based pathfinding.
         // The "Manhattan Distance" is calculated as the absolute difference of the x coordinates
         // plus the absolute difference of the y coordinates. Assumes only horizontal or vertical movement
@@ -852,8 +866,23 @@ export class IDAStarSolver {
                 if (occupiedCells.has(neighborId) || previouslyOccupiedCells.has(neighborId)) {
                     return false;
                 }
+            } else if (rule === 'keys') {
+                //doors and keys, supply keys in the rules
+                if(neighbor.doors || current.doors) {
+                    let direction = maze.getDirection(current,neighbor);
+                    let opposite = maze.getOppositeDirection(direction);
+                    if(current.doors[direction] || neighbor.doors[opposite]) {
+                        if(current.doors[direction] !== 'open') {
+                            if(!((current.doors[direction] && rules?.keys?.[current.doors[direction]]) ||
+                                (neighbor.doors[opposite] && rules?.keys?.[current.doors[direction]]))) {
+                                    return false;
+                            } 
+                        } 
+                    }
+                }
             }
         }
+
         return true;
     }
 

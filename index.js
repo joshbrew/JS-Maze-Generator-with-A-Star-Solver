@@ -4,6 +4,7 @@ import './index.css'
 import { Maze } from "./src/maze";
 import { AStarSolver, IDAStarSolver } from "./src/astar";
 import { MazeGame } from "./src/mazegame";
+import { FlowField } from "./src/flowfield"
 import { 
   generateDepthFirstMaze, 
   generateHuntAndKillMaze, 
@@ -146,6 +147,48 @@ generateMazeUI('Spiraling', noDeadEndsSpiral, 100, 100);
 //setup key events
 document.addEventListener('keydown', MazeGame.keyDownHandler);
 document.addEventListener('keyup', MazeGame.keyUpHandler);
+
+
+
+
+// Define the terrain types and their costs
+const costRules = {
+  'grass': 1,        // Passable terrain with low cost
+  'water': 5,        // Passable terrain with higher cost
+  'mountain': Infinity // Impassable terrain
+};
+
+// Create a 20x20 grid with different terrain types
+const exampleGrid = [];
+for (let y = 0; y < 20; y++) {
+  const row = [];
+  for (let x = 0; x < 20; x++) {
+      if (x > 7 && x < 14 && y > 7 && y < 14) row.push('water');
+      else if (y == 19) row.push('mountain');
+      else row.push('grass');
+  }
+  exampleGrid.push(row);
+}
+
+// Create FlowField instance with the example grid and cost rules
+const flowFieldOptions = {
+  width: 20,
+  height: 20,
+  allowDiagonal: true,
+  costField: exampleGrid,
+  costRules: costRules
+};
+
+const flowField = new FlowField(flowFieldOptions);
+
+let cv = document.createElement('canvas');
+
+cv.width = 500; cv.height = 500;
+
+document.body.insertAdjacentHTML('beforeend',`<hr/><h3>Flow Field Test (Click anywhere) (WIP):</h3>`);
+document.body.appendChild(cv);
+
+flowField.visualize(cv);
 
 
 

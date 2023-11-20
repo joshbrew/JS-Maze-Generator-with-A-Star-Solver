@@ -1,3 +1,5 @@
+import {AStarSolver} from './astar'
+
 
 // A simple seedable random number generator
 class SeededRandom {
@@ -117,17 +119,32 @@ export class Maze {
         console.timeEnd(`genMaze ${this.generator.name}`);
     }
  
-    getDirectionKey(dx, dy) {
+    getDirection(fromCell, toCell) {
+        if (toCell.x > fromCell.x) {
+            if (toCell.y < fromCell.y) return 'upRight';
+            else if (toCell.y > fromCell.y) return 'downRight';
+            else return 'right';
+        }
+        else if (toCell.x < fromCell.x) {
+            if (toCell.y < fromCell.y) return 'upLeft';
+            else if (toCell.y > fromCell.y) return 'downLeft';
+            else return 'left';
+        }
+        else {
+            if (toCell.y < fromCell.y) return 'up';
+            else if (toCell.y > fromCell.y) return 'down';
+        }
+    }  
     
+    getDirectionKey(dx, dy) {
         for (const [key, value] of Object.entries(this.directionsOct)) {
             if (value.dx === dx && value.dy === dy) {
                 return key;
             }
         }
-    
         return null; // or throw an error if you prefer
     }
-        
+
     getWallDirection(dx, dy) {
         // Translate directional changes into wall directions for orthogonal directions
         if (dx === 0 && dy === -1) return 'up';
@@ -151,7 +168,6 @@ export class Maze {
         if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
             return this.cells[y][x];
         }
-        
         // Return null if the coordinates are out of bounds
         return null;
     }
@@ -422,7 +438,6 @@ export class Maze {
                     this.connect(centerCell, neighbor);
                 });
             }
-
         }
         else {
             this.cells.forEach(row => {
@@ -448,7 +463,7 @@ export class Maze {
     ) {
         if(typeof playerIndex === 'undefined') playerIndex = Object.keys(this.players).length;
         const playerCell = this.getCell(x, y);
-        this.players[playerIndex] = { cell: playerCell, color };  // Store the player along with their color
+        this.players[playerIndex] = { cell: playerCell, color, keys:{} };  // Store the player along with their color
         this.visitedCells[playerIndex] = [];  // Initialize visitedCells for the new player
 
         this.recordVisit(playerCell, playerIndex);  // Record the cell visitation
@@ -590,6 +605,69 @@ export class Maze {
         // Use a regular expression to match and replace the alpha value in the rgba string
         return rgbaString.replace(/rgba\((\d+),(\d+),(\d+),(\d*(?:\.\d+)?)\)/, `rgba($1,$2,$3,${newAlpha})`);
     }
+
+    setDoor(cell, direction, color) {
+        if(!cell.doors) {
+            cell.doors = {};
+        }
+        cell.doors[direction] = color;
+    }
+
+    clearDoor(cell,direction) {
+        if(cell.doors) {
+            delete cell.doors[direction];
+        }
+    }
+
+    addKey(cell,color) {
+        if(!cell.keys) {
+            cell.keys = {};
+        }
+        cell.keys[color] = true;
+    }
+
+    removeKey(cell,color) {
+        if(cell.keys?.[color]) delete cell.keys[color];
+    }
+
+    placeDoorsAndKeys(start, end, N, M, doorOrder, allowDiagonal) {
+        let initialPath = AStarSolver.solve(start.x, start.y, end.x, end.y, allowDiagonal); // Initial path without doors
+    
+        let doors = [];
+        let keys = [];
+
+        function isMazeSolvableWithDoors(doors, keys) {
+            // Modify the A* solver to take into account doors and keys
+            // Run the solver from the start to the end
+            // If a path is found, return true; otherwise, return false
+        
+            let solver = new AStarSolver(maze);
+            solver.addDoorsAndKeys(doors, keys);
+            let path = solver.solve(start.x, start.y, end.x, end.y);
+        
+            return path.length > 0;
+        }
+    
+        for (let i = 0; i < doorOrder.length; i++) {
+            let doorColor = doorOrder[i];
+    
+            // Place door
+            let doorLocation = chooseDoorLocation(initialPath, N);
+            maze.setDoor(doorLocation.cell, doorLocation.direction, doorColor);
+            doors.push({ location: doorLocation, color: doorColor });
+    
+            // Place key for current door
+            let keyLocation = chooseKeyLocation(doorLocation, M, doors);
+            maze.addKey(keyLocation, doorColor);
+            keys.push({ location: keyLocation, color: doorColor });
+    
+            // Check solvability after placing each door and key
+            if (!isMazeSolvableWithDoors(doors, keys)) {
+                // Adjust door/key placement as needed
+            }
+        }
+    }
+
 }
 
 let wallKeys = ['up', 'right', 'down', 'left'];
@@ -604,6 +682,11 @@ export class MazeCell {
     id = Math.random();
       // All cells start with all walls intact
     walls = { up: true, right: true, down: true, left: true, upRight:true, upLeft:true, downRight:true, downLeft:true }; //octagonal coordinates
+    
+    //
+    doors;
+    keys;
+    
     connections = {}; //more general connection structure
     maze;
     // Constructor to initialize a cell at (x, y) coordinates
