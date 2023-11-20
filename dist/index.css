@@ -91,13 +91,18 @@ div {
   left: 50%;
   transform: translateX(-50%);
 }
-.left-btn {
-  left: 60px;
+.left-btn,
+.right-btn {
   top: 50%;
   transform: translateY(-50%);
 }
+.left-btn {
+  left: 50%;
+  transform: translateX(-25%) translateY(-50%);
+  margin-left: -50%;
+}
 .right-btn {
-  right: 50px;
-  top: 50%;
-  transform: translateY(-50%);
+  left: 50%;
+  transform: translateX(-75%) translateY(-50%);
+  margin-left: 50%;
 }

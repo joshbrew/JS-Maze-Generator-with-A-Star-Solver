@@ -97,5 +97,20 @@ body {
 /* Positioning the arrow buttons relative to the maze container */
 .up-btn { top: -15px; left: 50%; transform: translateX(-50%); } /* Center horizontally */
 .down-btn { bottom: -15px; left: 50%; transform: translateX(-50%); } /* Center horizontally */
-.left-btn { left: 60px; top: 50%; transform: translateY(-50%); } /* Center vertically */
-.right-btn { right: 50px; top: 50%; transform: translateY(-50%); } /* Center vertically */
+/* Positioning the left and right arrow buttons */
+.left-btn, .right-btn {
+  top: 50%; 
+  transform: translateY(-50%); /* This will vertically center the buttons */
+}
+
+.left-btn { 
+  left: 50%; 
+  transform: translateX(-25%) translateY(-50%); /* Adjust X translation for the left button */
+  margin-left: -50%; /* This moves the button to the left edge of the maze-container */
+}
+
+.right-btn { 
+  left: 50%; 
+  transform: translateX(-75%) translateY(-50%); /* Adjust X translation for the right button */
+  margin-left: 50%; /* This moves the button to the right edge of the maze-container */
+}
