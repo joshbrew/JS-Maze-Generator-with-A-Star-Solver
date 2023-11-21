@@ -179,7 +179,7 @@ for (let y = 0; y < 20; y++) {
   const row = [];
   for (let x = 0; x < 20; x++) {
       if (x > 7 && x < 14 && y > 7 && y < 14) row.push('water');
-      else if (y == 19) row.push('mountain');
+      else if (y == 19 || (x === 3 && (y > 5 && y < 14))) row.push('mountain');
       else row.push('grass');
   }
   exampleGrid.push(row);

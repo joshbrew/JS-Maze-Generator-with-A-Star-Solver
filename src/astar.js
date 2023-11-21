@@ -10,6 +10,7 @@ export class AStarSolver {
     waitTicks = 0;
     waits = {};
     maxF = 0;
+    steps = 0; //steps this solution
 
     //multiagent
     goals = {};
@@ -43,7 +44,7 @@ export class AStarSolver {
         
         if(start === this.start && end === this.end && this.path.length > 0) return this.path; //just return existing path instead of solving again
         
-        console.time('astar');
+        //console.time('astar');
 
         this.reset();
     
@@ -59,7 +60,7 @@ export class AStarSolver {
             const result = this.stepSolver(openSet, closedSet, allowDiagonal, rules, maxWaitTicks);
             if(result && result !== true) break;
         }
-        console.timeEnd('astar');
+        //console.timeEnd('astar');
         return this.path; // No path found
     }
 
@@ -113,6 +114,8 @@ export class AStarSolver {
                 return this.path;
             }
         }
+
+        this.steps++;
 
         return hasValidMove;
     }
@@ -169,6 +172,7 @@ export class AStarSolver {
 
     reset(multiagent=false) {
         this.maxF = 0;
+        this.steps = 0;
         function withCell(cell) { //reset heuristics
             if('g' in cell) {cell.h = 0; cell.f = 0; cell.g = 0;}
             if(cell.heuristics) cell.heuristics = {};

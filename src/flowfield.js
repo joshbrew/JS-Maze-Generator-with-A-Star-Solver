@@ -50,10 +50,10 @@ export class FlowField {
         return result;
     }
 
-    initializeGrid(defaultValue) {
-        let grid = new Array(this.height);
-        for (let y = 0; y < this.height; y++) {
-            grid[y] = new Array(this.width).fill(defaultValue);
+    initializeGrid(defaultValue, width = this.width, height = this.height) {
+        let grid = new Array(height);
+        for (let y = 0; y < height; y++) {
+            grid[y] = new Array(width).fill(defaultValue);
         }
         return grid;
     }
@@ -140,7 +140,10 @@ export class FlowField {
         this.flowField = this.initializeGrid({ cost: Infinity, direction: null });
 
         this.calculateIntegrationField(goalX, goalY);
+        
         this.calculateFlowField();
+
+        this.convolveFlowField(); // Optionally, you can do convolution after applying repulsion
     }
 
     calculateIntegrationField(goalX, goalY) {
@@ -166,6 +169,8 @@ export class FlowField {
                 if (this.costField[y][x] !== Infinity) {
                     let lowestCost = Infinity;
                     let direction = null;
+                    let hasImpassableNeighbor = false;
+                    let impassableNeighborDirection = { x: 0, y: 0 };
     
                     this.getNeighbors(x, y).forEach(({nx, ny}) => {
                         let neighborCost = this.integrationField[ny][nx];
@@ -173,7 +178,17 @@ export class FlowField {
                             lowestCost = neighborCost;
                             direction = {x: nx - x, y: ny - y};
                         }
+                        if (this.costField[ny][nx] === Infinity) {
+                            hasImpassableNeighbor = true;
+                            impassableNeighborDirection.x += nx - x;
+                            impassableNeighborDirection.y += ny - y;
+                        }
                     });
+    
+                    if (hasImpassableNeighbor) {
+                        // Adjust direction to be away from impassable neighbor
+                        direction = this.adjustDirectionAwayFromImpassable(direction, impassableNeighborDirection);
+                    }
     
                     this.flowField[y][x] = { cost: lowestCost, direction };
                 }
@@ -181,60 +196,92 @@ export class FlowField {
         }
         this.convolveFlowField();
     }
+        
+    //add some avoidance from walls so they are less likely to get stuck on corners etc
+    adjustDirectionAwayFromImpassable(direction, impassableNeighborDirection) {
+        // Calculate a new direction that points away from the impassable neighbor
+        let adjustedDirection = {
+            x: direction.x*0.5-(impassableNeighborDirection.x),
+            y: direction.y*0.5-(impassableNeighborDirection.y)
+        };
+        
+        // Normalize the adjusted direction
+        let magnitude = Math.sqrt(adjustedDirection.x * adjustedDirection.x + adjustedDirection.y * adjustedDirection.y);
+        if (magnitude > 0) {
+            adjustedDirection.x /= magnitude;
+            adjustedDirection.y /= magnitude;
+
+            adjustedDirection.x *= 2;
+            adjustedDirection.y *= 2;
+        }
+
+        return adjustedDirection;
+    }
+
+    isWithinBounds(x, y) {
+        return x >= 0 && x < this.width && y >= 0 && y < this.height;
+    }
 
     convolveFlowField() {
-        // Apply a convolution step to smooth the directions
+        // Define the kernel
         let kernel = [
             [0.05, 0.1, 0.05],
             [0.1,  0.4,  0.1],
             [0.05, 0.1, 0.05]
         ];
     
-        // Create a new flow field for the results of the convolution
-        let newFlowField = this.initializeGrid({ cost: Infinity, direction: null });
+        // Create a padded grid for the results of the convolution
+        let paddedFlowField = this.initializeGrid({ cost: Infinity, direction: null }, this.width + 2, this.height + 2);
     
-         // Iterate over each cell, skipping the edges
-        for (let y = 1; y < this.height - 1; y++) {
-            for (let x = 1; x < this.width - 1; x++) {
-                let directionSum = {x: 0, y: 0};
+        // Copy the flow field into the padded grid, offset by one to account for the padding
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                paddedFlowField[y + 1][x + 1] = this.flowField[y][x];
+            }
+        }
+    
+        // Perform the convolution on the padded grid, excluding the padding from the result
+        let newFlowField = this.initializeGrid({ cost: Infinity, direction: null });
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                let directionSum = { x: 0, y: 0 };
                 let kernelSum = 0;
+    
+                // Apply the kernel to the neighboring cells in the padded grid
+                for (let ky = 0; ky < kernel.length; ky++) {
+                    for (let kx = 0; kx < kernel[ky].length; kx++) {
+                        let paddedY = y + ky;
+                        let paddedX = x + kx;
+                        let weight = kernel[ky][kx];
+                        let currentCell = paddedFlowField[paddedY][paddedX];
 
-                // Only convolve passable cells (cost != Infinity)
-                if (this.costField[y][x] !== Infinity) {
-                    // Apply the kernel to the neighboring cells
-                    for (let ky = -1; ky <= 1; ky++) {
-                        for (let kx = -1; kx <= 1; kx++) {
-                            let currentDirection = this.flowField[y + ky][x + kx].direction;
-                            if (currentDirection) {
-                                let weight = kernel[ky + 1][kx + 1];
-                                directionSum.x += currentDirection.x * weight;
-                                directionSum.y += currentDirection.y * weight;
-                                kernelSum += weight;
-                            }
+                        
+                        if (currentCell.direction) {
+                            directionSum.x += currentCell.direction.x * weight;
+                            directionSum.y += currentCell.direction.y * weight;
+                            kernelSum += weight;
                         }
                     }
-
-                    // Average the direction values to get the smoothed direction
-                    if (kernelSum > 0) {
-                        newFlowField[y][x] = {
-                            cost: this.flowField[y][x].cost,
-                            direction: {
-                                x: directionSum.x / kernelSum,
-                                y: directionSum.y / kernelSum
-                            }
-                        };
-                    } else {
-                        // Preserve original direction if no neighbors contribute to convolution
-                        newFlowField[y][x] = this.flowField[y][x];
-                    }
+                }
+    
+                // Average the direction values to get the smoothed direction
+                if (kernelSum > 0) {
+                    newFlowField[y][x] = {
+                        cost: this.flowField[y][x].cost, // Use the original cost
+                        direction: {
+                            x: directionSum.x / kernelSum,
+                            y: directionSum.y / kernelSum
+                        }
+                    };
                 }
             }
         }
-
     
         // Replace the old flow field with the convolved one
         this.flowField = newFlowField;
     }
+
+
 
     directions = [
         {dx: -1, dy: 0}, {dx: 1, dy: 0},
@@ -278,6 +325,14 @@ export class FlowField {
         return Infinity; // Return Infinity if the coordinates are outside the grid or for impassable terrain
     }
 
+
+
+
+
+
+
+
+    //quick visualization code, everything after this is not relevant to the implementation
 
     toggleVisualizationMode() {
         const modes = ['costField', 'integrationField', 'flowField'];
@@ -377,7 +432,7 @@ export class FlowField {
         } else {
             // Vary the color based on the cost. Adjust the color scheme as needed.
             const greenIntensity = 255 - Math.min(cost * 50, 255);
-            return `rgb(0, ${greenIntensity}, 0)`; // Darker green for higher costs
+            return `rgb(0, ${greenIntensity}, ${255 - greenIntensity})`; // Darker green for higher costs
         }
     }
 
@@ -436,89 +491,59 @@ export class FlowField {
         }
     }
 
-    // In your FlowField class, modify the updateDots method
+
     updateDots() {
         const collisionRadius = 0.5; // Radius for checking collisions
         const goalRadius = 2.0; // Radius for settling near the goal
-        const settleDelay = 100; // Delay (in frames) before a dot can settle
-
-        // Update each dot
+    
+        // Update each dot based on the flow field, collision avoidance, and settling logic
         this.dots.forEach(dot => {
             if (!dot.isSettled) {
+                // Update dot based on the flow field
                 dot.update(this);
-                dot.checkSettle(this.dots, collisionRadius, goalRadius, settleDelay);
-            }
-
-            // Check for collisions
-            for (let otherDot of this.dots) {
-                if (dot !== otherDot && dot.collidesWith(otherDot)) {
-                    this.resolveElasticCollision(dot, otherDot);
-                }
+    
+                // Check for collisions with impassable terrain and resolve them
+                dot.ensureBoundsAndAvoidImpassable(this.costField, this.width, this.height);
+    
+                // Check for settling near the goal
+                dot.checkSettle(this.dots, collisionRadius, goalRadius);
             }
         });
-}
+    
+        // Handle collisions between dots
+        for (let i = 0; i < this.dots.length; i++) {
+            for (let j = i + 1; j < this.dots.length; j++) {
+                const dot1 = this.dots[i];
+                const dot2 = this.dots[j];
+    
+                if (dot1.collidesWith(dot2, collisionRadius)) {
+                    dot1.resolveElasticCollision(dot2);
+    
+                    // After resolving the collision, recheck the positions to ensure they are not in impassable terrain
+                    dot1.ensureBoundsAndAvoidImpassable(this.costField, this.width, this.height);
+                    dot2.ensureBoundsAndAvoidImpassable(this.costField, this.width, this.height);
+                }
+            }
+        }
+    }
 
     drawDots(ctx, cellSize) {
         this.dots.forEach(dot => dot.draw(ctx, cellSize));
     }
 
-    // Resolves elastic collision between two dots
-    resolveElasticCollision(dot1, dot2) {
-        // Calculate the vector from dot1 to dot2
-        const dx = dot2.x - dot1.x;
-        const dy = dot2.y - dot1.y;
-        
-        // Calculate distance between dots
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance == 0) return; // Prevent division by zero
-
-        // Normalize the collision vector
-        const nx = dx / distance;
-        const ny = dy / distance;
-
-        // Calculate relative velocity
-        const vx = dot1.vx - dot2.vx;
-        const vy = dot1.vy - dot2.vy;
-
-        // Calculate relative velocity in terms of the normal direction
-        const velocityAlongNormal = nx * vx + ny * vy;
-
-        // Do not resolve if velocities are separating
-        if (velocityAlongNormal > 0) return;
-
-        // Calculate restitution (elasticity) - set to 1 for a perfectly elastic collision
-        const restitution = 1;
-
-        // Calculate impulse scalar
-        const impulse = -(1 + restitution) * velocityAlongNormal / (1 / dot1.mass + 1 / dot2.mass);
-
-        // Apply impulse to the velocities of dot1 and dot2
-        dot1.vx -= impulse * nx / dot1.mass;
-        dot1.vy -= impulse * ny / dot1.mass;
-        dot2.vx += impulse * nx / dot2.mass;
-        dot2.vy += impulse * ny / dot2.mass;
-
-        // Separate the dots slightly to prevent sticking
-        const overlap = distance / 2;
-        dot1.x -= overlap * nx;
-        dot1.y -= overlap * ny;
-        dot2.x += overlap * nx;
-        dot2.y += overlap * ny;
-    }
 
 }
+
 
 class Dot {
     constructor(x, y, speed = 0.1, mass = 1) {
         this.x = x;
         this.y = y;
-        this.baseSpeed = speed; // Base speed of the dot
-        this.vx = 0; // Velocity in x-direction
-        this.vy = 0; // Velocity in y-direction
+        this.baseSpeed = speed;
+        this.vx = 0;
+        this.vy = 0;
         this.mass = mass;
-
-        this.isSettled = false; 
-        this.settleDelay = 5;
+        this.isSettled = false;
     }
 
     
@@ -543,30 +568,76 @@ class Dot {
         }
     }
 
-    // Helper method to calculate distance to another dot
     distanceTo(x, y) {
         const dx = this.x - x;
         const dy = this.y - y;
         return Math.sqrt(dx * dx + dy * dy);
     }
 
-    update(flowField) {
+    collidesWith(otherDot, collisionRadius = 0.5) {
+        return this.distanceTo(otherDot.x, otherDot.y) < collisionRadius;
+    }
+
+    ensureBoundsAndAvoidImpassable(costField, fieldWidth, fieldHeight) {
+        // Ensure the dot is within bounds
+        this.x = Math.max(0, Math.min(this.x, fieldWidth - 1));
+        this.y = Math.max(0, Math.min(this.y, fieldHeight - 1));
+
         const cellX = Math.floor(this.x);
         const cellY = Math.floor(this.y);
-        const direction = flowField.getDirection(cellX, cellY);
-        const cost = flowField.getCost(cellX, cellY);
 
-        if (direction && cost !== Infinity) {
-            // Adjust speed based on the cost. Lower cost increases speed.
-            const speed = this.baseSpeed / cost;
+        // Handle elastic collision with impassable walls
+        if (costField[cellY][cellX] === Infinity) {
+            this.handleElasticCollisionWithWall();
+        }
+    }
 
-            // Update velocity based on the direction and speed
-            this.vx = direction.x * speed;
-            this.vy = direction.y * speed;
+    handleElasticCollisionWithWall() {
+        // Elastic collision logic: Invert the velocity components
+        this.vx = -this.vx;
+        this.vy = -this.vy;
 
-            // Update position
+        // Optionally, you can add a slight bounce-back effect
+        this.x += this.vx;
+        this.y += this.vy;
+    }
+
+    teleportToNearestPassableCell(costField, fieldWidth, fieldHeight) {
+        // Search for the nearest passable cell
+        for (let radius = 1; radius < Math.max(fieldWidth, fieldHeight); radius++) {
+            for (let dy = -radius; dy <= radius; dy++) {
+                for (let dx = -radius; dx <= radius; dx++) {
+                    const newX = Math.floor(this.x) + dx;
+                    const newY = Math.floor(this.y) + dy;
+                    if (newX >= 0 && newY >= 0 && newX < fieldWidth && newY < fieldHeight) {
+                        if (costField[newY][newX] !== Infinity) {
+                            this.x = newX;
+                            this.y = newY;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    update(flowField) {
+        if (!this.isSettled) {
+            const cellX = Math.floor(this.x);
+            const cellY = Math.floor(this.y);
+            const direction = flowField.getDirection(cellX, cellY);
+            const cost = flowField.getCost(cellX, cellY);
+
+            if (direction && cost !== Infinity) {
+                const speed = this.baseSpeed / cost;
+                this.vx = direction.x * speed;
+                this.vy = direction.y * speed;
+            }
+
             this.x += this.vx;
             this.y += this.vy;
+
+            this.ensureBoundsAndAvoidImpassable(flowField.costField, flowField.width, flowField.height);
         }
     }
 
@@ -577,22 +648,48 @@ class Dot {
         ctx.fill();
     }
 
-    collidesWith(otherDot) {
-        const dx = this.x - otherDot.x;
-        const dy = this.y - otherDot.y;
+    
+    // Resolves elastic collision between two dots
+    resolveElasticCollision(dot2) {
+        // Calculate the vector from dot1 to dot2
+        const dx = dot2.x - this.x;
+        const dy = dot2.y - this.y;
+        
+        // Calculate distance between dots
         const distance = Math.sqrt(dx * dx + dy * dy);
-        return distance < 0.5; // Adjust the collision threshold as needed
-    }
+        if (distance == 0) return; // Prevent division by zero
 
-     // Method to update the velocity
-    setVelocity(vx, vy) {
-        this.vx = vx;
-        this.vy = vy;
-    }
+        // Normalize the collision vector
+        const nx = dx / distance;
+        const ny = dy / distance;
 
-    // Method to update the dot position
-    updatePosition() {
-        this.x += this.vx;
-        this.y += this.vy;
+        // Calculate relative velocity
+        const vx = this.vx - dot2.vx;
+        const vy = this.vy - dot2.vy;
+
+        // Calculate relative velocity in terms of the normal direction
+        const velocityAlongNormal = nx * vx + ny * vy;
+
+        // Do not resolve if velocities are separating
+        if (velocityAlongNormal > 0) return;
+
+        // Calculate restitution (elasticity) - set to 1 for a perfectly elastic collision
+        const restitution = 1;
+
+        // Calculate impulse scalar
+        const impulse = -(1 + restitution) * velocityAlongNormal / (1 / this.mass + 1 / dot2.mass);
+
+        // Apply impulse to the velocities of dot1 and dot2
+        this.vx -= impulse * nx / this.mass;
+        this.vy -= impulse * ny / this.mass;
+        dot2.vx += impulse * nx / dot2.mass;
+        dot2.vy += impulse * ny / dot2.mass;
+
+        // Separate the dots slightly to prevent sticking
+        const overlap = distance / 2;
+        this.x -= overlap * nx;
+        this.y -= overlap * ny;
+        dot2.x += overlap * nx;
+        dot2.y += overlap * ny;
     }
 }
