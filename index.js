@@ -197,7 +197,7 @@ const flowField = new FlowField(flowFieldOptions);
 
 let cv = document.createElement('canvas');
 
-cv.width = 500; cv.height = 500;
+cv.width = 1000; cv.height = 1000;
 
 document.body.insertAdjacentHTML('beforeend',`<hr/><h3>Flow Field Test (Click anywhere) (WIP):</h3>`);
 document.body.appendChild(cv);
