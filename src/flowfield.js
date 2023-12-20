@@ -16,18 +16,17 @@ export class FlowField {
     init(options) {
         if(options.allowDiagonal) this.allowDiagonal = options.allowDiagonal;
         if(options.maze) {
-            this.width = maze.width*7;
-            this.height = maze.height*7;
+            this.width = options.maze.width*7;
+            this.height = options.maze.height*7;
 
         } else if(options.width) {
             this.width = options.width;
             this.height = options.height;
         }
         if(options.costRules) this.costField = this.applyCostRules(options.costField, options.costRules);
-        else this.costField = options.costField ? options.costField : this.initializeGrid(Infinity);
+        else this.costField = options.costField ? options.costField : options.maze ? this.setMazeTerrain(options.maze) : this.initializeGrid(1);
         
         this.integrationField = this.initializeGrid(Infinity);
-        
         this.flowField = this.initializeGrid({ cost: Infinity, direction: null });
     }
 
@@ -58,16 +57,23 @@ export class FlowField {
         return grid;
     }
 
-    setMazeTerrain(maze) {
+    setMazeTerrain = (maze) => {
         // Loop through each MazeCell and update the corresponding 7x7 grid
+        let costField = [];
+        let height = maze.height*7;
+        for(let i = 0; i < height; i++) {
+            costField.push([]);
+        }
         for (let y = 0; y < maze.height; y++) {
             for (let x = 0; x < maze.width; x++) {
-                this.setCostFieldMazeCell(x, y, maze.cells[y][x]);
+                this.setCostFieldMazeCell(x, y, maze.cells[y][x], costField);
             }
         }
+
+        return costField;
     }
 
-    setCostFieldMazeCell(x, y, mazeCell) {
+    setCostFieldMazeCell(x, y, mazeCell, costField) {
         // Define the 7x7 subgrid for each MazeCell
         const baseX = x * 7;
         const baseY = y * 7;
@@ -78,50 +84,35 @@ export class FlowField {
             for (let j = 0; j < 7; j++) {
                 // The corners and edges are walls if allowDiagonals is true
                 let cost = this.calculateCostForMazePosition(i, j, mazeCell, offset);
-                this.costField[baseY + j][baseX + i] = cost;
+                costField[baseY + j][baseX + i] = cost;
             }
         }
     }
 
     calculateCostForMazePosition(i, j, mazeCell) {
-        // Impassable edge of the subgrid
-        if (i === 0 || i === 6 || j === 0 || j === 6) {
-            return Infinity;
-        }
-    
-        // Passable inner 3x3 grid
+       // Passable inner 3x3 grid (center)
         if (i >= 2 && i <= 4 && j >= 2 && j <= 4) {
             return 1;
         }
+
+        // Handle orthogonal walls: make the 2x3 section for up/down/left/right walls impassable if true
+        // Top wall (3x2)
+        if (!mazeCell.walls.up && (j <= 2) && (i >= 2 && i <= 4)) return 1;
+        // Bottom wall (3x2)
+        if (!mazeCell.walls.down && (j >= 4) && (i >= 2 && i <= 4)) return 1;
+        // Left wall (2x3)
+        if (!mazeCell.walls.left && (i <= 2) && (j >= 2 && j <= 4)) return 1;
+        // Right wall (2x3)
+        if (!mazeCell.walls.right && (i >= 4) && (j >= 2 && j <= 4)) return 1;
+
     
-        // Handle orthogonal walls: make the 2x3 section for up/down/left/right walls impassable
-        if (mazeCell.walls.up && j === 1 && i >= 2 && i <= 4) return Infinity;
-        if (mazeCell.walls.down && j === 5 && i >= 2 && i <= 4) return Infinity;
-        if (mazeCell.walls.left && i === 1 && j >= 2 && j <= 4) return Infinity;
-        if (mazeCell.walls.right && i === 5 && j >= 2 && j <= 4) return Infinity;
-    
-        // Handle passable diagonal walls
+        // Handle passable diagonal walls if diagonals are allowed
         if (this.allowDiagonals) {
-            // Cut out for upLeft diagonal
-            if (mazeCell.walls.upLeft && ((i === 1 && (j === 2 || j === 1)) || (j === 1 && (i === 2 || i === 1)))) {
-                return Infinity;
-            }
-            // Cut out for upRight diagonal
-            if (mazeCell.walls.upRight && ((i === 5 && (j === 2 || j === 1)) || (j === 1 && (i === 4 || i === 5)))) {
-                return Infinity;
-            }
-            // Cut out for downRight diagonal
-            if (mazeCell.walls.downRight && ((i === 5 && (j === 4 || j === 5)) || (j === 5 && (i === 4 || i === 5)))) {
-                return Infinity;
-            }
-            // Cut out for downLeft diagonal
-            if (mazeCell.walls.downLeft && ((i === 1 && (j === 4 || j === 5)) || (j === 5 && (i === 2 || i === 1)))) {
-                return Infinity;
-            }
+            // Add conditions for diagonal walls here based on your specifications for diagonal openings
         }
     
-        // Cells are passable if not part of an orthogonal or diagonal wall
-        return 1;
+        // All other cells are passable
+        return Infinity;
     }
 
     updateField(goalX, goalY) { 
@@ -185,7 +176,7 @@ export class FlowField {
                         }
                     });
     
-                    if (hasImpassableNeighbor) {
+                    if (direction && hasImpassableNeighbor) {
                         // Adjust direction to be away from impassable neighbor
                         direction = this.adjustDirectionAwayFromImpassable(direction, impassableNeighborDirection);
                     }
@@ -341,7 +332,7 @@ export class FlowField {
         this.visualizationMode = modes[nextModeIndex];
     }
 
-    visualize(canvas) {
+    visualize = (canvas) => {
         if(!this.visualizationMode) this.visualizationMode = 'flowField'; // Default visualization mode
         const ctx = canvas.getContext('2d');
         const cellSize = canvas.width / this.width;
@@ -397,14 +388,14 @@ export class FlowField {
         }
     }
 
-    drawCostFieldCell(ctx, x, y, cellSize) {
+    drawCostFieldCell = (ctx, x, y, cellSize) => {
         const cost = this.costField[y][x];
         ctx.fillStyle = this.getCostFieldColor(cost);
         ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
         ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize); // Optional: Draw cell border
     }
 
-    drawIntegrationFieldCell(ctx, x, y, cellSize) {
+    drawIntegrationFieldCell = (ctx, x, y, cellSize) => {
         const integrationValue = this.integrationField[y][x];
         ctx.fillStyle = this.getIntegrationFieldColor(integrationValue);
         ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
@@ -412,7 +403,7 @@ export class FlowField {
         this.drawText(ctx, integrationValue, x * cellSize, y * cellSize, cellSize);
     }
 
-    drawFlowFieldCell(ctx, x, y, cellSize) {
+    drawFlowFieldCell = (ctx, x, y, cellSize) => {
         const cost = this.costField[y][x];
         const direction = this.flowField[y][x].direction;
     
@@ -465,19 +456,19 @@ export class FlowField {
         ctx.stroke();
     
         // Arrowhead
-        const angle = Math.atan2(endY - startY, endX - startX);
-        const headLength = cellSize / 4; // Customize length of the arrow head
-        ctx.beginPath();
-        ctx.moveTo(endX, endY);
-        ctx.lineTo(endX - headLength * Math.cos(angle - Math.PI / 6), endY - headLength * Math.sin(angle - Math.PI / 6));
-        ctx.lineTo(endX - headLength * Math.cos(angle + Math.PI / 6), endY - headLength * Math.sin(angle + Math.PI / 6));
-        ctx.lineTo(endX, endY);
-        ctx.lineTo(endX - headLength * Math.cos(angle - Math.PI / 6), endY - headLength * Math.sin(angle - Math.PI / 6));
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.fillStyle = 'black';
-        ctx.fill();
+        // const angle = Math.atan2(endY - startY, endX - startX);
+        // const headLength = cellSize / 4; // Customize length of the arrow head
+        // ctx.beginPath();
+        // ctx.moveTo(endX, endY);
+        // ctx.lineTo(endX - headLength * Math.cos(angle - Math.PI / 6), endY - headLength * Math.sin(angle - Math.PI / 6));
+        // ctx.lineTo(endX - headLength * Math.cos(angle + Math.PI / 6), endY - headLength * Math.sin(angle + Math.PI / 6));
+        // ctx.lineTo(endX, endY);
+        // ctx.lineTo(endX - headLength * Math.cos(angle - Math.PI / 6), endY - headLength * Math.sin(angle - Math.PI / 6));
+        // ctx.strokeStyle = 'black';
+        // ctx.lineWidth = 2;
+        // ctx.stroke();
+        // ctx.fillStyle = 'black';
+        // ctx.fill();
     }
 
     dots = [];

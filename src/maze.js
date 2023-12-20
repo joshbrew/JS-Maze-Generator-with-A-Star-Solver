@@ -631,7 +631,8 @@ export class Maze {
     }
 
     placeDoorsAndKeys(start, end, N, M, doorOrder, allowDiagonal) {
-        let initialPath = AStarSolver.solve(start.x, start.y, end.x, end.y, allowDiagonal); // Initial path without doors
+        let solver = new AStarSolver(this);
+        let initialPath = solver.solve(start.x, start.y, end.x, end.y, allowDiagonal); // Initial path without doors
     
         let doors = [];
         let keys = [];
@@ -648,23 +649,11 @@ export class Maze {
             return path.length > 0;
         }
     
-        for (let i = 0; i < doorOrder.length; i++) {
-            let doorColor = doorOrder[i];
-    
-            // Place door
-            let doorLocation = chooseDoorLocation(initialPath, N);
-            maze.setDoor(doorLocation.cell, doorLocation.direction, doorColor);
-            doors.push({ location: doorLocation, color: doorColor });
-    
-            // Place key for current door
-            let keyLocation = chooseKeyLocation(doorLocation, M, doors);
-            maze.addKey(keyLocation, doorColor);
-            keys.push({ location: keyLocation, color: doorColor });
-    
-            // Check solvability after placing each door and key
-            if (!isMazeSolvableWithDoors(doors, keys)) {
-                // Adjust door/key placement as needed
-            }
+        let pathTraversed = 0;
+        for (let i = this.path.length-1; i > 0; i--) {
+            //walk N steps, set cell to have an active door in the direction of the path
+            //test with A* for accessibility, place more doors of that color till it doesn't pass at N steps (give or take)
+            //for multiple doors, we'll place them in an order so it blocks the previous one's key.
         }
     }
 

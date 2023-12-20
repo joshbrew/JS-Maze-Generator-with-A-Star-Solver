@@ -187,11 +187,10 @@ for (let y = 0; y < 20; y++) {
 
 // Create FlowField instance with the example grid and cost rules
 const flowFieldOptions = {
-  width: 20,
-  height: 20,
   allowDiagonal: true,
-  costField: exampleGrid,
-  costRules: costRules
+  maze:new Maze(20, 20, generateMultiPathDepthFirstMaze, undefined, undefined, false) 
+  // costField: exampleGrid,
+  // costRules: costRules
 };
 
 const flowField = new FlowField(flowFieldOptions);
@@ -204,6 +203,18 @@ document.body.insertAdjacentHTML('beforeend',`<hr/><h3>Flow Field Test (Click an
 document.body.appendChild(cv);
 
 flowField.visualize(cv);
+
+
+// import {ActiveInferenceAgent} from './src/actinf'
+// let canv = document.createElement('canvas');
+// canv.width = 500; canv.height = 500;
+// let agent = new ActiveInferenceAgent();
+
+// agent.runSolver(20,20,false,canv,canv.width/20,'red');
+
+
+// document.body.insertAdjacentElement('beforeend', canv);
+
 
 
 
