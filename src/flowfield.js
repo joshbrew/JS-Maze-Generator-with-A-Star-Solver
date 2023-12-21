@@ -8,7 +8,7 @@ export class FlowField {
     flowField;
 
     maxValue = Infinity;
-    avoidance=1.5;
+    avoidance=1.5; avoidanceDampen=0.5; avoidObstacles=true;
 
     constructor(
         options
@@ -26,8 +26,10 @@ export class FlowField {
             this.width = options.width;
             this.height = options.height;
         }
+        if(options.avoidObstacles) options.avoidObstacles = true;
         if(options.maxValue) this.maxValue = options.maxValue;
-        if(options.avoidance) this.avoidance = options.avoidance;
+        if('avoidance' in options) this.avoidance = options.avoidance;
+        if('avoidanceDampen' in options) this.avoidanceDampen = options.avoidanceDampen;
         if(options.costRules) this.costField = this.applyCostRules(options.costField, options.costRules);
         else this.costField = options.costField ? options.costField : options.maze ? this.setMazeTerrain(options.maze) : this.initializeGrid(1);
         
@@ -183,9 +185,9 @@ export class FlowField {
                         }
                     });
     
-                    if (direction && hasImpassableNeighbor) {
+                    if (direction && hasImpassableNeighbor && this.avoidObstacles) {
                         // Adjust direction to be away from impassable neighbor
-                        direction = this.adjustDirectionAwayFromImpassable(direction, impassableNeighborDirection, this.avoidance);
+                        direction = this.adjustDirectionAwayFromImpassable(direction, impassableNeighborDirection, this.avoidance, this.avoidanceDampen);
                     }
     
                     this.flowField[y][x] = { cost: lowestCost, direction };
@@ -196,11 +198,11 @@ export class FlowField {
     }
         
     //add some avoidance from walls so they are less likely to get stuck on corners etc
-    adjustDirectionAwayFromImpassable(direction, impassableNeighborDirection, multiplier=1.5) {
+    adjustDirectionAwayFromImpassable(direction, impassableNeighborDirection, multiplier=1.5, dampen=0.5) {
         // Calculate a new direction that points away from the impassable neighbor
         let adjustedDirection = {
-            x: direction.x*0.5-(impassableNeighborDirection.x),
-            y: direction.y*0.5-(impassableNeighborDirection.y)
+            x: direction.x*dampen-(impassableNeighborDirection.x),
+            y: direction.y*dampen-(impassableNeighborDirection.y)
         };
         
         // Normalize the adjusted direction
