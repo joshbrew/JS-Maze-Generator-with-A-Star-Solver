@@ -195,7 +195,7 @@ for (let y = 0; y < 20; y++) {
 // Create FlowField instance with the example grid and cost rules
 const flowFieldOptions = {
   allowDiagonal: true,
-  avoidance:1,
+  avoidance:1.25,
   maze:new Maze(20, 20, generateMultiPathDepthFirstMaze, undefined, undefined, false) 
   // costField: exampleGrid,
   // costRules: costRules
