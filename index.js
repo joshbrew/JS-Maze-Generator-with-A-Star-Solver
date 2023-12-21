@@ -323,12 +323,16 @@ async function setupBabylonJS(maze, canvasId, fpsdivId, genbuttonId) {
           instance.rotation.y = Math.PI / 2; // Wall is aligned along the x-axis
           break;
         case 'down':
-          instance.position = new BABYLON.Vector3(cell.x * cellSize - cellOffset, cellOffset, cell.y * cellSize);
-          instance.rotation.y = Math.PI / 2; // Wall is aligned along the x-axis
+          if(cell.y === maze.height -1) {
+            instance.position = new BABYLON.Vector3(cell.x * cellSize - cellOffset, cellOffset, cell.y * cellSize);
+            instance.rotation.y = Math.PI / 2; // Wall is aligned along the x-axis
+          }
           break;
         case 'right':
-          instance.position = new BABYLON.Vector3(cell.x * cellSize, cellOffset, cell.y * cellSize - cellOffset);
-          instance.rotation.y = 0; // Wall is perpendicular to the x-axis
+          if(cell.x === maze.width -1) {
+            instance.position = new BABYLON.Vector3(cell.x * cellSize, cellOffset, cell.y * cellSize - cellOffset);
+            instance.rotation.y = 0; // Wall is perpendicular to the x-axis
+          }
           break;
         case 'left':
           instance.position = new BABYLON.Vector3(cell.x * cellSize - cellSize, cellOffset, cell.y * cellSize - cellOffset);
@@ -373,6 +377,8 @@ async function setupBabylonJS(maze, canvasId, fpsdivId, genbuttonId) {
 
         return instance;
     }
+
+    //need a pass to create columns
 
 
     function setInstances() {
