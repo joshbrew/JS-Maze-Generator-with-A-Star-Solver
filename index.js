@@ -166,6 +166,13 @@ document.addEventListener('keyup', MazeGame.keyUpHandler);
 
 
 
+
+
+
+
+
+
+
 // Define the terrain types and their costs
 const costRules = {
   'grass': 1,        // Passable terrain with low cost
@@ -188,6 +195,7 @@ for (let y = 0; y < 20; y++) {
 // Create FlowField instance with the example grid and cost rules
 const flowFieldOptions = {
   allowDiagonal: true,
+  avoidance:1,
   maze:new Maze(20, 20, generateMultiPathDepthFirstMaze, undefined, undefined, false) 
   // costField: exampleGrid,
   // costRules: costRules
@@ -214,6 +222,14 @@ flowField.visualize(cv);
 
 
 // document.body.insertAdjacentElement('beforeend', canv);
+
+
+
+
+
+
+
+
 
 
 

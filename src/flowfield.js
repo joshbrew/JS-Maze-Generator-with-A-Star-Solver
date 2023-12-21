@@ -5,7 +5,10 @@ export class FlowField {
     allowDiagonal;
     costField;
     integrationField;
-    flowField
+    flowField;
+
+    maxValue = Infinity;
+    avoidance=1.5;
 
     constructor(
         options
@@ -23,11 +26,13 @@ export class FlowField {
             this.width = options.width;
             this.height = options.height;
         }
+        if(options.maxValue) this.maxValue = options.maxValue;
+        if(options.avoidance) this.avoidance = options.avoidance;
         if(options.costRules) this.costField = this.applyCostRules(options.costField, options.costRules);
         else this.costField = options.costField ? options.costField : options.maze ? this.setMazeTerrain(options.maze) : this.initializeGrid(1);
         
-        this.integrationField = this.initializeGrid(Infinity);
-        this.flowField = this.initializeGrid({ cost: Infinity, direction: null });
+        this.integrationField = this.initializeGrid(this.maxValue);
+        this.flowField = this.initializeGrid({ cost: this.maxValue, direction: null });
     }
 
     applyCostRules(costField, costRules) {
@@ -41,7 +46,7 @@ export class FlowField {
                     result[y][x] = costRules[terrainType];
                 } else {
                     // If no rule exists for the terrain type, default to impassable
-                    result[y][x] = Infinity;
+                    result[y][x] = this.maxValue;
                 }
             }
         }
@@ -91,7 +96,7 @@ export class FlowField {
 
     calculateCostForMazePosition(i, j, mazeCell) {
        // Passable inner 3x3 grid (center)
-        if (i >= 2 && i <= 4 && j >= 2 && j <= 4) {
+        if (i >= 1 && i <= 5 && j >= 1 && j <= 5) {
             return 1;
         }
 
@@ -109,10 +114,12 @@ export class FlowField {
         // Handle passable diagonal walls if diagonals are allowed
         if (this.allowDiagonals) {
             // Add conditions for diagonal walls here based on your specifications for diagonal openings
+            if(mazeCell.walls.upLeft && (j <= 3) && (i < 3) && !((j === 3 && i === 0) || (i === 3 && j === 0))) return 1; //this should create a navigable corner passage
+            //todo at the end we need to make a second pass to open up the corners on adjacent cells
         }
     
         // All other cells are passable
-        return Infinity;
+        return this.maxValue;
     }
 
     updateField(goalX, goalY) { 
@@ -122,13 +129,13 @@ export class FlowField {
             return;
         }
 
-        if (this.costField[goalY][goalX] === Infinity) {
+        if (this.costField[goalY][goalX] === this.maxValue) {
             console.error('Goal is on an impassable terrain');
         }
 
         // Reset fields before recalculating
-        this.integrationField = this.initializeGrid(Infinity);
-        this.flowField = this.initializeGrid({ cost: Infinity, direction: null });
+        this.integrationField = this.initializeGrid(this.maxValue);
+        this.flowField = this.initializeGrid({ cost: this.maxValue, direction: null });
 
         this.calculateIntegrationField(goalX, goalY);
         
@@ -157,8 +164,8 @@ export class FlowField {
     calculateFlowField() {
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
-                if (this.costField[y][x] !== Infinity) {
-                    let lowestCost = Infinity;
+                if (this.costField[y][x] !== this.maxValue) {
+                    let lowestCost = this.maxValue;
                     let direction = null;
                     let hasImpassableNeighbor = false;
                     let impassableNeighborDirection = { x: 0, y: 0 };
@@ -169,7 +176,7 @@ export class FlowField {
                             lowestCost = neighborCost;
                             direction = {x: nx - x, y: ny - y};
                         }
-                        if (this.costField[ny][nx] === Infinity) {
+                        if (this.costField[ny][nx] === this.maxValue) {
                             hasImpassableNeighbor = true;
                             impassableNeighborDirection.x += nx - x;
                             impassableNeighborDirection.y += ny - y;
@@ -178,7 +185,7 @@ export class FlowField {
     
                     if (direction && hasImpassableNeighbor) {
                         // Adjust direction to be away from impassable neighbor
-                        direction = this.adjustDirectionAwayFromImpassable(direction, impassableNeighborDirection);
+                        direction = this.adjustDirectionAwayFromImpassable(direction, impassableNeighborDirection, this.avoidance);
                     }
     
                     this.flowField[y][x] = { cost: lowestCost, direction };
@@ -189,7 +196,7 @@ export class FlowField {
     }
         
     //add some avoidance from walls so they are less likely to get stuck on corners etc
-    adjustDirectionAwayFromImpassable(direction, impassableNeighborDirection) {
+    adjustDirectionAwayFromImpassable(direction, impassableNeighborDirection, multiplier=1.5) {
         // Calculate a new direction that points away from the impassable neighbor
         let adjustedDirection = {
             x: direction.x*0.5-(impassableNeighborDirection.x),
@@ -202,8 +209,8 @@ export class FlowField {
             adjustedDirection.x /= magnitude;
             adjustedDirection.y /= magnitude;
 
-            adjustedDirection.x *= 2;
-            adjustedDirection.y *= 2;
+            adjustedDirection.x *= multiplier;
+            adjustedDirection.y *= multiplier;
         }
 
         return adjustedDirection;
@@ -222,7 +229,7 @@ export class FlowField {
         ];
     
         // Create a padded grid for the results of the convolution
-        let paddedFlowField = this.initializeGrid({ cost: Infinity, direction: null }, this.width + 2, this.height + 2);
+        let paddedFlowField = this.initializeGrid({ cost: this.maxValue, direction: null }, this.width + 2, this.height + 2);
     
         // Copy the flow field into the padded grid, offset by one to account for the padding
         for (let y = 0; y < this.height; y++) {
@@ -232,7 +239,7 @@ export class FlowField {
         }
     
         // Perform the convolution on the padded grid, excluding the padding from the result
-        let newFlowField = this.initializeGrid({ cost: Infinity, direction: null });
+        let newFlowField = this.initializeGrid({ cost: this.maxValue, direction: null });
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
                 let directionSum = { x: 0, y: 0 };
@@ -313,7 +320,7 @@ export class FlowField {
         if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
             return this.costField[y][x];
         }
-        return Infinity; // Return Infinity if the coordinates are outside the grid or for impassable terrain
+        return this.maxValue; // Return Infinity if the coordinates are outside the grid or for impassable terrain
     }
 
 
@@ -418,7 +425,7 @@ export class FlowField {
     }
     
     getCostFieldColor(cost) {
-        if (cost === Infinity) {
+        if (cost === this.maxValue) {
             return 'gray'; // Impassable terrain
         } else {
             // Vary the color based on the cost. Adjust the color scheme as needed.
@@ -428,7 +435,7 @@ export class FlowField {
     }
 
     getIntegrationFieldColor(value) {
-        if (value === Infinity) return 'gray'; // Impassable
+        if (value === this.maxValue) return 'gray'; // Impassable
         const intensity = Math.min(1, value / 100);
         return `rgba(0, 0, 255, ${intensity})`; // Scale the blue color based on integration value
     }
@@ -478,7 +485,9 @@ export class FlowField {
         for (let i = 0; i < numberOfDots; i++) {
             const x = Math.floor(Math.random() * this.width);
             const y = Math.floor(Math.random() * this.height);
-            this.dots.push(new Dot(x, y));
+            const dot = new Dot(x, y, undefined, undefined, this.maxValue);
+            this.dots.push(dot);
+            dot.teleportToNearestPassableCell(this.costField,this.width,this.height);
         }
     }
 
@@ -527,7 +536,7 @@ export class FlowField {
 
 
 class Dot {
-    constructor(x, y, speed = 0.1, mass = 1) {
+    constructor(x, y, speed = 0.1, mass = 1, maxValue=Infinity) {
         this.x = x;
         this.y = y;
         this.baseSpeed = speed;
@@ -535,6 +544,7 @@ class Dot {
         this.vy = 0;
         this.mass = mass;
         this.isSettled = false;
+        this.maxValue = maxValue;
     }
 
     
@@ -578,7 +588,7 @@ class Dot {
         const cellY = Math.floor(this.y);
 
         // Handle elastic collision with impassable walls
-        if (costField[cellY][cellX] === Infinity) {
+        if (costField[cellY][cellX] === this.maxValue) {
             this.handleElasticCollisionWithWall();
         }
     }
@@ -601,7 +611,8 @@ class Dot {
                     const newX = Math.floor(this.x) + dx;
                     const newY = Math.floor(this.y) + dy;
                     if (newX >= 0 && newY >= 0 && newX < fieldWidth && newY < fieldHeight) {
-                        if (costField[newY][newX] !== Infinity) {
+                        if (costField[newY][newX] !== this.maxValue) {
+                            console.log('teleporting')
                             this.x = newX;
                             this.y = newY;
                             return;
@@ -619,7 +630,7 @@ class Dot {
             const direction = flowField.getDirection(cellX, cellY);
             const cost = flowField.getCost(cellX, cellY);
 
-            if (direction && cost !== Infinity) {
+            if (direction && cost !== this.maxValue) {
                 const speed = this.baseSpeed / cost;
                 this.vx = direction.x * speed;
                 this.vy = direction.y * speed;
