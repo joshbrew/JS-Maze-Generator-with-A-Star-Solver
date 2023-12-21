@@ -104,13 +104,13 @@ export class FlowField {
 
         // Handle orthogonal walls: make the 2x3 section for up/down/left/right walls impassable if true
         // Top wall (3x2)
-        if (!mazeCell.walls.up && (j <= 2) && (i >= 2 && i <= 4)) return 1;
+        if (!mazeCell.walls.up && (j <= 1) && (i >= 1 && i <= 5)) return 1;
         // Bottom wall (3x2)
-        if (!mazeCell.walls.down && (j >= 4) && (i >= 2 && i <= 4)) return 1;
+        if (!mazeCell.walls.down && (j >= 5) && (i >= 1 && i <= 5)) return 1;
         // Left wall (2x3)
-        if (!mazeCell.walls.left && (i <= 2) && (j >= 2 && j <= 4)) return 1;
+        if (!mazeCell.walls.left && (i <= 1) && (j >= 1 && j <= 5)) return 1;
         // Right wall (2x3)
-        if (!mazeCell.walls.right && (i >= 4) && (j >= 2 && j <= 4)) return 1;
+        if (!mazeCell.walls.right && (i >= 5) && (j >= 1 && j <= 5)) return 1;
 
     
         // Handle passable diagonal walls if diagonals are allowed
