@@ -123,7 +123,15 @@ export class Maze {
             this.generator(this, this.seed, this.allowDiagonal);
         }
         if(this.usingDoors) {
-            this.addDoorsAndKeys(this.start,this.end,this.doorOrder,this.maxCellsFromEnd,allowDiagonal,this.pathToDoor);
+            this.addDoorsAndKeys(
+                this.start,
+                this.end,
+                this.doorOrder,
+                this.maxCellsFromEnd,
+                allowDiagonal,
+                this.pathToDoor,
+                true
+            );
         }
         console.timeEnd(`genMaze ${this.generator.name}`);
     }
@@ -332,8 +340,16 @@ export class Maze {
                 this.visitedCells[key] = [];
                 this.setPlayer(this.start.x, this.start.y, key);
             }
-            // if(this.usingDoors) {
-            //     this.addDoorsAndKeys(this.start,this.end,this.doorOrder, this.maxCellsFromEnd, this.allowDiagonal, this.pathToDoor, true);
+            // if(this.usingDoors) { //error for some reason
+            //     this.addDoorsAndKeys(
+            //         this.start,
+            //         this.end,
+            //         this.doorOrder, 
+            //         this.maxCellsFromEnd, 
+            //         this.allowDiagonal, 
+            //         this.pathToDoor, 
+            //         true
+            //     );
             // }
         }
     }
