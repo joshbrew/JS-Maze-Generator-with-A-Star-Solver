@@ -792,10 +792,14 @@ export class Maze {
             return true;
         };
 
+        let remainingDoors = [...doorOrder];
+
         outer:
         for(let i = doorOrder.length - 1; i >= 0; i--) {
             let color = doorOrder[i];
             
+            remainingDoors.pop();
+
             solver.reset(); //reset solver
             let path = solver.solve(start.x, start.y, goal.x, goal.y, allowDiagonal, { keys: {} }); //if we do not posess a key of a color, doors act like walls
             if(path?.length < 1) throw new Error('unsolvable');
@@ -845,41 +849,83 @@ export class Maze {
 
 
             //lets place a key
-            if(pathToDoor === 'random') {
-                let endCoords = (1+maxCellsFromEnd)*Object.keys(keyCells).length;
-                const canBeExcluded = (this.width > endCoords && this.height > endCoords);
-                let cell;
-                if(canBeExcluded) {
-                    // Define two exclusion zones
-                    const exclusionZones = [
-                        { x: start.x - endCoords, y: start.x - endCoords, width: 2*endCoords, height: 2*endCoords }, // First exclusion zone
-                        { x: end.x - endCoords, y: end.x - endCoords, width: 2*endCoords, height: 2*endCoords }  // Second exclusion zone
-                    ];
-                    // Generate a random coordinate excluding the defined zones
-                    const xy = genCoordsWithExclusionZones(this.width, this.height, exclusionZones);
-                    cell = this.getCell(xy.x,xy.y);   
-                } else cell = doorPaths[color][1]; //just put it in the first cell available
+            if(doorCells[color]?.length > 0) {
+                if(pathToDoor === 'random') {
+                    
+                    let cell;
+                    let setKey = () => {
+                        let endCoords = (1+maxCellsFromEnd)*Object.keys(keyCells).length;
+                        const canBeExcluded = (this.width > endCoords && this.height > endCoords);
+                        if(canBeExcluded) {
+                            // Define two exclusion zones
+                            const exclusionZones = [
+                                { x: start.x - endCoords, y: start.x - endCoords, width: 2*endCoords, height: 2*endCoords }, // First exclusion zone
+                                { x: end.x - endCoords, y: end.x - endCoords, width: 2*endCoords, height: 2*endCoords }  // Second exclusion zone
+                            ];
+                            // Generate a random coordinate excluding the defined zones
+                            const xy = genCoordsWithExclusionZones(this.width, this.height, exclusionZones);
+                            cell = this.getCell(xy.x,xy.y);   
+                        } else cell = doorPaths[color][0]; //just put it in the first cell available
+        
+                        
+                        let keys = {};
+                        remainingDoors.forEach((color) => {keys[color] = true})
+                        keyPaths[color] = solver.solve(start.x,start.y,cell.x,cell.y,allowDiagonal, { keys });
+                    }
+                    setKey();
+                    let k = 0;
+                    //check if reachable
+                    while(keyPaths[color][keyPaths[color].length - 1] !== keyCells[color] && k < 5) { //unreachable
+                        setKey();
+                        k++;
+                    }
+                    if(k === 5 && keyPaths[color][keyPaths[color].length - 1] !== keyCells[color])
+                        keyCells[color] = doorPaths[color][0];
+                    else if(cell) {
+                        cell.setKey(color);
+                        keyCells[color] = cell;
+                    }
 
-                cell.setKey(color);
-                keyCells[color] = cell;
-                keyPaths[color] = solver.solve(start.x,start.y,cell.x,cell.y,allowDiagonal);
-            } else if(doorPaths[color]) {
-                let min = 0; 
-                let max = Math.floor(maxDistance);
-                if(doorPaths[color].length > maxCellsFromEnd) {
-                    min = maxCellsFromEnd;
-                    max = doorPaths[color].length - maxCellsFromEnd;
-                }
-                //console.log(doorPaths[color])
-                let idx = Math.floor(Math.random()*(max-min)) + min;
-                if(!doorPaths[color][idx]) idx = 0;
-                doorPaths[color][idx].setKey(color); //place a key on this random point in the path to the door
+                } else if(doorPaths[color]) {
+                    let cell;
+                    let setKey = () => {
+                        let min = 0; 
+                        let max = Math.floor(maxDistance);
+                        if(doorPaths[color].length > maxCellsFromEnd) {
+                            min = maxCellsFromEnd;
+                            max = doorPaths[color].length - maxCellsFromEnd;
+                        }
+                        //console.log(doorPaths[color])
+                        let idx = Math.floor(Math.random()*(max-min)) + min;
+                        if(!doorPaths[color][idx]) idx = 0;
+                        
+                        cell = doorPaths[color][idx];
+
+                        let keys = {};
+                        remainingDoors.forEach((color) => {keys[color] = true})
+                        keyPaths[color] = solver.solve(start.x,start.y,cell.x,cell.y,allowDiagonal, { keys });
                 
-                keyCells[color] = doorPaths[color][idx];
-                keyPaths[color] = solver.solve(start.x,start.y,doorPaths[color][idx].x,doorPaths[color][idx].y,allowDiagonal);
+                    }
+                    setKey();
+                    let k = 0;
+                    //check if reachable
+                    while(keyPaths[color][keyPaths[color].length - 1] !== cell && k < 5) { //unreachable
+                        setKey();
+                        k++;
+                    }
+                    if(k === 5 && keyPaths[color][keyPaths[color].length - 1] !== cell)
+                        keyCells[color] = doorPaths[color][0];
+                    else if (cell) {
+                        cell.setKey(color); //place a key on this random point in the path to the door
+                        keyCells[color] = cell;
+                    }
+                } else {
+                    console.warn("No path for", color);
+                }
             } else {
-                console.error("No path for", color);
+                console.warn("No cells for",color);
             }
+           
         }
 
         this.doorCells = this.doorCells ? Object.assign(this.doorCells,doorCells) : doorCells;
