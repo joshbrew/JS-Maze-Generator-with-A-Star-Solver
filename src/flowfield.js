@@ -143,7 +143,7 @@ export class FlowField {
         
         this.calculateFlowField();
 
-        this.convolveFlowField(); // Optionally, you can do convolution after applying repulsion
+        this.convolveFlowField(); 
     }
 
     calculateIntegrationField(goalX, goalY) {

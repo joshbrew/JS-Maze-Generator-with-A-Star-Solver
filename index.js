@@ -28,7 +28,9 @@ function generateMazeUI(
   drawFiddleHeads=false, 
   strokeStyle,
   allowDiagonal=false,
-  useTraffic=false
+  useTraffic=false,
+  doors=undefined,
+  randomKeyPlacement=false //if random it will not be along the path to the end (can be like a hint)
 ) {
   // Generate unique identifiers for DOM elements
   const uniqueId = Math.random().toString(36).substring(2, 9);
@@ -68,9 +70,14 @@ function generateMazeUI(
   // Set up the maze, the solver, and the game logic for this maze game
   const maze = new Maze(cellsPerRow, rows, generatorFunction, undefined, undefined, allowDiagonal); 
   
+  if(doors) {
+    maze.addDoorsAndKeys(maze.start,maze.end,doors,Math.floor(Math.min(cellsPerRow,rows)*0.75/doors.length),allowDiagonal,randomKeyPlacement ? 'random' : 'last');
+  }
+
   if(drawFiddleHeads) maze.drawFiddleHeads = drawFiddleHeads;
   const aStarSolver = new AStarSolver(maze);
   const mazeGame = new MazeGame(maze, `canvas-${uniqueId}`, aStarSolver, strokeStyle);
+
 
   // Set up the input events for the AI and maze generator
   mazeGame.setAIInputEvents(`${mazeType}intv-${uniqueId}`, `${mazeType}solve-${uniqueId}`, `${mazeType}race-${uniqueId}`);
@@ -149,12 +156,12 @@ function generateMazeUI(
 }
 
 // Example usage
-generateMazeUI('Depth First', generateDepthFirstMaze, 20, 20, false,undefined,undefined,undefined,false);
+generateMazeUI('Depth First', generateDepthFirstMaze, 20, 20, false,undefined,undefined,undefined,false,['purple'],true);
 generateMazeUI('Hunt & Kill', generateHuntAndKillMaze, 20, 20, true, undefined, 'darkred');
 generateMazeUI('Depth First Multipath', generateMultiPathDepthFirstMaze, 20, 20, false,undefined,undefined,undefined,true);
 generateMazeUI('Sidewinder', generateSidewinderMaze, 20, 20);
 generateMazeUI('Ellers', generateEllersMaze, 20, 20);
-generateMazeUI('Hunt & Kill w/ Braids Octagonal', generateHuntAndKillWithBraidsMaze, 20, 20, false, false, 'magenta', true);
+generateMazeUI('Hunt & Kill w/ Braids Octagonal', generateHuntAndKillWithBraidsMaze, 20, 20, false, false, 'magenta', true, false, ['yellow', 'turquoise']);
 generateMazeUI('No Dead Ends', noDeadEnds, 20, 20, false, true, 'brown'); 
 generateMazeUI('Spiraling', noDeadEndsSpiral, 100, 100); 
 // Add more calls to `generateMazeUI` for additional mazes as needed.

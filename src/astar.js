@@ -36,7 +36,7 @@ export class AStarSolver {
         endY = this.maze.end.y,
         allowDiagonal = this.maze.allowDiagonal,
         rules,
-        maxWaitTicks=5 //maximum wait period before aborting
+        maxWaitTicks=0 //maximum wait period before aborting
     ) => {
 
         let start = this.maze.cells[startY][startX];
@@ -64,7 +64,7 @@ export class AStarSolver {
         return this.path; // No path found
     }
 
-    stepSolver = (openSet, closedSet, allowDiagonal, rules, maxWaitTicks) => {
+    stepSolver = (openSet, closedSet, allowDiagonal, rules, maxWaitTicks=0) => {
         if(openSet.isEmpty()) return this.path;
         let hasValidMove = false;
         let current = openSet.pop();
@@ -142,19 +142,17 @@ export class AStarSolver {
                 if(neighbor.doors || current.doors) {
                     let direction = maze.getDirection(current,neighbor);
                     let opposite = maze.getOppositeDirection(direction);
-                    if(current.doors[direction] || neighbor.doors[opposite]) {
-                        if(current.doors[direction] !== 'open') {
-                            if(!((current.doors[direction] && rules?.keys?.[current.doors[direction]]) ||
-                                (neighbor.doors[opposite] && rules?.keys?.[current.doors[direction]]))) {
-                                    return false;
-                            } 
+                    if(current.doors?.[direction] || neighbor.doors?.[opposite]) {
+                        if(current.doors?.[direction] != false || neighbor.doors?.[opposite] != false) { //if door is not false or undefined
+                            if(!((current.doors?.[direction] && rules?.keys?.[current.doors[direction]]) ||
+                                (neighbor.doors?.[opposite] && rules?.keys?.[neighbor.doors[opposite]]))) {
+                                    return false; //if the rules object passed does not contain a key for the corresponding door
+                            } //this neighbor is not accessible if door is in way with no key
                         } 
                     }
                 }
             }
         }
-            
-       
 
         return true;
     }
@@ -871,16 +869,15 @@ export class IDAStarSolver {
                     return false;
                 }
             } else if (rule === 'keys') {
-                //doors and keys, supply keys in the rules
                 if(neighbor.doors || current.doors) {
                     let direction = maze.getDirection(current,neighbor);
                     let opposite = maze.getOppositeDirection(direction);
-                    if(current.doors[direction] || neighbor.doors[opposite]) {
-                        if(current.doors[direction] !== 'open') {
-                            if(!((current.doors[direction] && rules?.keys?.[current.doors[direction]]) ||
-                                (neighbor.doors[opposite] && rules?.keys?.[current.doors[direction]]))) {
-                                    return false;
-                            } 
+                    if(current.doors?.[direction] || neighbor.doors?.[opposite]) {
+                        if(current.doors?.[direction] != false || neighbor.doors?.[opposite] != false) { //if door is not false or undefined
+                            if(!((current.doors?.[direction] && rules?.keys?.[current.doors[direction]]) ||
+                                (neighbor.doors?.[opposite] && rules?.keys?.[neighbor.doors[direction]]))) {
+                                    return false; //if the rules object passed does not contain a key for the corresponding door
+                            } //this neighbor is not accessible if door is in way with no key
                         } 
                     }
                 }

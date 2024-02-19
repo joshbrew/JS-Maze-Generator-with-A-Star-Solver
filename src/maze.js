@@ -57,6 +57,12 @@ export class Maze {
     width; height; generator; onWin;
     cells = [];
     players = {};
+
+    usingDoors = false;
+    doorCells = {};
+    keyCells = {};
+    doorOrder; maxCellsFromEnd; pathToDoor;
+
     visitedCells = {};// Rolling buffer to store the last 10 visited cells
     playerPathLength = 10; //e.g. store the last 10 visited cells
 
@@ -115,6 +121,9 @@ export class Maze {
   
         if (typeof this.generator === 'function') {
             this.generator(this, this.seed, this.allowDiagonal);
+        }
+        if(this.usingDoors) {
+            this.addDoorsAndKeys(this.start,this.end,this.doorOrder,this.maxCellsFromEnd,allowDiagonal,this.pathToDoor);
         }
         console.timeEnd(`genMaze ${this.generator.name}`);
     }
@@ -244,6 +253,34 @@ export class Maze {
         }
     }
 
+    getAdjacentDirections(direction, allowDiagonal = false) {
+        const cardinalDirections = {
+            left: ['up', 'down'],
+            right: ['up', 'down'],
+            up: ['left', 'right'],
+            down: ['left', 'right']
+        };
+    
+        const diagonalDirections = {
+            left: ['upLeft', 'downLeft'],
+            right: ['upRight', 'downRight'],
+            up: ['upLeft', 'upRight'],
+            down: ['downLeft', 'downRight'],
+            upRight: ['right', 'up'],
+            downRight: ['right', 'down'],
+            upLeft: ['left', 'up'],
+            downLeft: ['left', 'down']
+        };
+    
+        if (allowDiagonal) {
+            // Return adjacent diagonal directions based on the input direction
+            return diagonalDirections[direction] || [];
+        } else {
+            // Return adjacent cardinal directions based on the input direction
+            return cardinalDirections[direction] || [];
+        }
+    }
+
     // Method to set the starting point of the maze
     setStart(x, y) {
         this.start = this.getCell(x, y);
@@ -277,6 +314,7 @@ export class Maze {
     }
 
     // Method to reset the maze
+    // todo: reset keys and doors
     reset(newGoal=true) {
         this.won = false;  // Reset the won flag
         for (let y = 0; y < this.height; y++) {
@@ -294,9 +332,13 @@ export class Maze {
                 this.visitedCells[key] = [];
                 this.setPlayer(this.start.x, this.start.y, key);
             }
+            if(this.usingDoors) {
+                this.addDoorsAndKeys(this.start,this.end,this.doorOrder, this.maxCellsFromEnd, this.allowDiagonal, this.pathToDoor, true);
+            }
         }
     }
 
+   
     //set start/end posts along different edges. Doesn't guarantee they aren't nearby.
     getRandomStartAndEnd() {
         // Set a random starting point
@@ -315,32 +357,55 @@ export class Maze {
             startX = 0;
             startY = Math.floor(this.seed.random() * this.height);
         }
+
         
         // Set a random ending point on a different edge
-        let endEdge;
-        do {
-            endEdge = Math.floor(this.seed.random() * 4);
-        } while (endEdge === startEdge); // Ensure the end edge is different from the start edge
         
+        // Select a different end edge from the start edge
+        //let endEdge = (startEdge + 2) % 4; // This ensures opposite edge, remove this logic if you want a random different edge but not opposite
+       
+            // Calculate a safe range for end positions to avoid being too close to start
+        let safeEndRanges = {
+            x: [0, this.width - 1],
+            y: [0, this.height - 1]
+        };
+        
+        // Adjust the safe range based on startEdge to enforce distance
+        if (startEdge === 0 || startEdge === 2) {
+            // Adjust horizontal range to avoid being too close
+            safeEndRanges.x = [Math.max(0, startX - 2), Math.min(this.width - 1, startX + 2)];
+        } else {
+            // Adjust vertical range to avoid being too close
+            safeEndRanges.y = [Math.max(0, startY - 2), Math.min(this.height - 1, startY + 2)];
+        }
+
+        // Select a different end edge from the start edge
+        let possibleEndEdges = [0, 1, 2, 3].filter(e => e !== startEdge);
+        let endEdge = possibleEndEdges[Math.floor(this.seed.random() * possibleEndEdges.length)];
+
         let endX, endY;
+        // Assign end position based on endEdge, ensuring it's not too close to the start
         if (endEdge === 0) { // up
-            endX = Math.floor(this.seed.random() * this.width);
+            endX = Math.floor(this.seed.random() * (safeEndRanges.x[1] - safeEndRanges.x[0])) + safeEndRanges.x[0];
             endY = 0;
         } else if (endEdge === 1) { // right
             endX = this.width - 1;
-            endY = Math.floor(this.seed.random() * this.height);
+            endY = Math.floor(this.seed.random() * (safeEndRanges.y[1] - safeEndRanges.y[0])) + safeEndRanges.y[0];
         } else if (endEdge === 2) { // down
-            endX = Math.floor(this.seed.random() * this.width);
+            endX = Math.floor(this.seed.random() * (safeEndRanges.x[1] - safeEndRanges.x[0])) + safeEndRanges.x[0];
             endY = this.height - 1;
         } else { // left
             endX = 0;
-            endY = Math.floor(this.seed.random() * this.height);
+            endY = Math.floor(this.seed.random() * (safeEndRanges.y[1] - safeEndRanges.y[0])) + safeEndRanges.y[0];
         }
 
         return {
             startX, startY, endX, endY
         }
     }
+
+    
+
 
     connect(cell1, cell2, neighbors=true) {
         cell1.connect(cell2, neighbors);
@@ -498,26 +563,54 @@ export class Maze {
         console.log("There's a wall in the way!", player, wallDirection, playerIndex)
     }) {
         const { dx, dy } = typeof direction === 'object' ? direction : this.directionsOct[direction]; //input {dx,dy} or "up"/"down"/"left"/"right"
-        
-        const currentCell = this.players[playerIndex].cell;
+        const player = this.players[playerIndex];
+        const currentCell = player.cell;
         const newX = currentCell.x + dx;
         const newY = currentCell.y + dy;
       
         // Check for walls in the direction of movement
         const wallDirection = this.getWallDirection(dx, dy);
-        if (currentCell.walls[wallDirection]) {
-          if (onCollision) onCollision(this.players[playerIndex], wallDirection, playerIndex);
-          return;
+        const opposite = this.getOppositeDirection(wallDirection);
+        let adjacent = this.getNeighbor(currentCell, wallDirection);
+        const door = currentCell.doors?.[wallDirection] || adjacent?.doors?.[opposite];
+        if (currentCell.walls[wallDirection] || (door && !player.keys?.[door])) {
+            if (onCollision) onCollision(player, wallDirection, playerIndex);
+            return;
         }
+        //if((door && player.keys?.[door])) console.log('player has key', door);
       
         // If there are no walls, update the player's position
         const newCell = this.getCell(newX, newY);
         if (newCell) {
-          this.players[playerIndex].cell = newCell;
-          this.recordVisit(newCell, playerIndex);  // Record the cell visitation
-      
-          // Check for win condition
-          this.checkWin();
+            player.cell = newCell;
+            this.recordVisit(newCell, playerIndex);  // Record the cell visitation
+            if(newCell.keys) {
+                if(!player.keys) player.keys = {};
+                Object.assign(player.keys,newCell.keys);
+                //console.log('Player has keys:', player.keys);
+
+                Object.keys(newCell.keys).forEach(color => {
+                    // Check if all players have this key
+                    const allPlayersHaveKey = Object.keys(this.players).every(p => {
+                        const plr = this.players[p];
+                        if (!plr.keys) {
+                            plr.keys = {}; // Initialize keys object if it doesn't exist
+                        }
+                        // Check if the player has the key; assume presence is indicated by truthy value
+                        return plr.keys[color];
+                    });
+            
+                    // If all players have the key, clear it from the cell
+                    if (allPlayersHaveKey) {
+                        newCell.clearKey(color); // Assuming clearKey is a method that removes the key from the cell
+                    }
+                });
+
+                this.handlePlayerHasKey(player, player.keys, newCell);
+            }
+
+            // Check for win condition
+            this.checkWin();
         } else {
           console.log("Player is trying to move outside of the maze boundaries!");
         }
@@ -535,6 +628,10 @@ export class Maze {
                 this.handleWin();
             }
         }
+    }
+
+    handlePlayerHasKey(player, key, cell) {
+        console.log("Player", player, "picked up key" , key, cell)
     }
 
     // Default win behavior, call in onWin if you want to retain it
@@ -565,6 +662,7 @@ export class Maze {
         let lastSeed = this.seed.randF;
         this.seed.randF = this.seed.initialSeed;
         context.beginPath();
+        let doorCells = [];
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
                 const cell = this.cells[y][x];
@@ -582,6 +680,7 @@ export class Maze {
                             context.fillRect(cell.x * size, cell.y * size, size, size);
                         }
                     }
+                    context.strokeStyle = strokeStyle;
                     cell.draw(
                         context, 
                         size, 
@@ -591,10 +690,27 @@ export class Maze {
                         this.seed,
                         true
                     );
+                    if(cell.doors || cell.keys) doorCells.push(cell);
                 }
             }
         }
         context.stroke(); //faster not to do it per-cell
+
+        if(doorCells.length > 0) {
+            doorCells.forEach((cell) => {
+                cell.draw(
+                    context, 
+                    size, 
+                    undefined,
+                    this.allowDiagonal,
+                    this.drawFiddleHeads, 
+                    this.seed,
+                    false,
+                    true
+                );
+            })
+        }
+
         this.seed.randF = lastSeed;
     }
 
@@ -606,55 +722,176 @@ export class Maze {
         return rgbaString.replace(/rgba\((\d+),(\d+),(\d+),(\d*(?:\.\d+)?)\)/, `rgba($1,$2,$3,${newAlpha})`);
     }
 
-    setDoor(cell, direction, color) {
-        if(!cell.doors) {
-            cell.doors = {};
-        }
-        cell.doors[direction] = color;
-    }
+    //generalized door solver, should work on multipath mazes too
+    addDoorsAndKeys(start, end, doorOrder=['chartreuse'], maxCellsFromEnd=3, allowDiagonal, pathToDoor='last', clearPrev = true) {
+        
+        if(this.usingDoors && clearPrev) this.clearDoorsAndKeys();
+        
+        if(this.doorOrder) {
+            this.doorOrder.push(...doorOrder);
+        } else this.doorOrder = doorOrder;
+        this.maxCellsFromEnd = maxCellsFromEnd;
+        this.pathToDoor = pathToDoor;
 
-    clearDoor(cell,direction) {
-        if(cell.doors) {
-            delete cell.doors[direction];
-        }
-    }
 
-    addKey(cell,color) {
-        if(!cell.keys) {
-            cell.keys = {};
-        }
-        cell.keys[color] = true;
-    }
-
-    removeKey(cell,color) {
-        if(cell.keys?.[color]) delete cell.keys[color];
-    }
-
-    placeDoorsAndKeys(start, end, N, M, doorOrder, allowDiagonal) {
+        this.usingDoors = true;
+        
+        
         let solver = new AStarSolver(this);
-        let initialPath = solver.solve(start.x, start.y, end.x, end.y, allowDiagonal); // Initial path without doors
-    
-        let doors = [];
-        let keys = [];
+       
+        let doorCells = {}; //set doors after begin before end
+        let keyCells = {}; //set keys after begin before corresponding doors 
+        let doorPaths = {}; //path to the first or last door set
+        let keyPaths = {}; //verify access to keys
+        //add doors, then wall off those doors with more doors till those are all walled off, repeat
 
-        function isMazeSolvableWithDoors(doors, keys) {
-            // Modify the A* solver to take into account doors and keys
-            // Run the solver from the start to the end
-            // If a path is found, return true; otherwise, return false
-        
-            let solver = new AStarSolver(maze);
-            solver.addDoorsAndKeys(doors, keys);
-            let path = solver.solve(start.x, start.y, end.x, end.y);
-        
-            return path.length > 0;
-        }
+        let goal = end;
+        let maxDistance = 0;
+
+        let lastColor; let lastColorIdx = 0; //need to rotate thru all possible directions to block em off
+        for(let i = doorOrder.length - 1; i >= 0; i--) {
+            let color = doorOrder[i];
+
+            solver.reset(); //reset solver
+            let path = solver.solve(start.x, start.y, goal.x, goal.y, allowDiagonal, { keys: {} }); //if we do not posess a key of a color, doors act like walls
+            if(path?.length < 1) throw new Error('unsolvable');
+            doorPaths[color] = [...path]; //store first path to goal/door (probably least convoluted path)
+
+            if (path[path.length - 1] === goal) {
+                while (true) {
+                    const setDoor = () => {
+                        if (path[path.length - 1] === goal) {
+                            let idx = Math.floor(2 + Math.random() * maxCellsFromEnd); //varying the door placement along the path to make it more interesting
+                            let dist = path.length - idx;
+                            let cell = path[dist - 1];
+                            let cell2 = path[dist];
+                            if(dist > maxDistance) maxDistance = dist;
+                            if (!cell || !cell2) return false;
+                            let d = this.getDirection(cell, cell2);
+                            cell.setDoor(d, color);
+                            if(allowDiagonal) {
+                                this.getAdjacentDirections(d, allowDiagonal).forEach((ad) => {
+                                    if(!cell.walls[ad] && !cell.doors[ad]) {
+                                        cell.setDoor(ad,color);
+                                    }
+                                })
+                            }
+                            doorCells[color] = doorCells[color] || [];
+                            if (doorCells[color][doorCells[color].length - 1] !== cell) {
+                                doorCells[color].push(cell);
+                            } else {
+                                return false;
+                            }
+                        }
+                        return true;
+                    };
     
-        let pathTraversed = 0;
-        for (let i = this.path.length-1; i > 0; i--) {
-            //walk N steps, set cell to have an active door in the direction of the path
-            //test with A* for accessibility, place more doors of that color till it doesn't pass at N steps (give or take)
-            //for multiple doors, we'll place them in an order so it blocks the previous one's key.
+                    if (!setDoor() && (!lastColor || lastColorIdx < doorCells[lastColor].length - 1)) break;
+    
+                    let pathCpy = [...path]; // Copy path since solver will reuse array memory
+                    solver.reset(); // Reset solver
+
+                    //check after adding the door if the goal is still solvable
+                    let newPath = solver.solve(start.x, start.y, goal.x, goal.y, allowDiagonal, { keys: {} });
+    
+                    //if goal now not solvable move onto next door in previous color list or break
+                    if (newPath[newPath.length - 1] !== goal) {
+                        // Check if there are remaining doors from the last color to block off
+                        if (lastColor && lastColorIdx < doorCells[lastColor].length - 1) {
+                            lastColorIdx++;
+                            goal = doorCells[lastColor][lastColorIdx]; // Update goal to next door to block
+                            //update path to new goal
+                            newPath = solver.solve(start.x, start.y, goal.x, goal.y, allowDiagonal, { keys: {} });
+                        } else {
+                            lastColor = color;
+                            lastColorIdx = 0; 
+                            goal = doorCells[color][0]; //next goal should be first door in previous list
+                            if (pathToDoor === 'last') {
+                                doorPaths[color] = pathCpy; // Use the last path to the door (longest path)
+                            }
+                            break; // Exit the loop to move on to the next door color
+                        }
+                    }
+    
+                    //set next path to block off
+                    path = newPath; 
+                }
+            }
+
+            //lets place a key
+            if(pathToDoor === 'random') {
+
+                let endCoords = (1+maxCellsFromEnd)*Object.keys(keyCells).length;
+                const canBeExcluded = (this.width > endCoords && this.height > endCoords);
+                let cell;
+                if(canBeExcluded) {
+                    // Define two exclusion zones
+                    const exclusionZones = [
+                        { x: start.x - endCoords, y: start.x - endCoords, width: 2*endCoords, height: 2*endCoords }, // First exclusion zone
+                        { x: end.x - endCoords, y: end.x - endCoords, width: 2*endCoords, height: 2*endCoords }  // Second exclusion zone
+                    ];
+                    // Generate a random coordinate excluding the defined zones
+                    const xy = genCoordsWithExclusionZones(this.width, this.height, exclusionZones);
+                    cell = this.getCell(xy.x,xy.y);   
+                } else cell = doorPaths[color][1]; //just put it in the first cell available
+
+                cell.setKey(color);
+                keyCells[color] = cell;
+                keyPaths[color] = solver.solve(start.x,start.y,cell.x,cell.y,allowDiagonal);
+            } else if(doorPaths[color]) {
+                let min = 0; 
+                let max = Math.floor(maxDistance);
+                if(doorPaths[color].length > maxCellsFromEnd) {
+                    min = maxCellsFromEnd;
+                    max = doorPaths[color].length - maxCellsFromEnd;
+                }
+                //console.log(doorPaths[color])
+                let idx = Math.floor(Math.random()*(max-min)) + min;
+                if(!doorPaths[color][idx]) idx = 1;
+                doorPaths[color][idx].setKey(color); //place a key on this random point in the path to the door
+                
+                keyCells[color] = doorPaths[color][idx];
+                keyPaths[color] = solver.solve(start.x,start.y,doorPaths[color][idx].x,doorPaths[color][idx].y,allowDiagonal);
+            } else {
+                console.error("No path for",color);
+            }
         }
+
+        this.doorCells = this.doorCells ? Object.assign(this.doorCells,doorCells) : doorCells;
+        this.keyCells = this.keyCells ? Object.assign(this.keyCells, keyCells) : keyCells;
+
+        let result = {
+            doors:doorCells,
+            keys:keyCells,
+            doorPaths,
+            keyPaths
+        };
+
+        //now that we did the doors, lets do the keys
+        return result; //all doors set successfully, now draw maze to see result
+        
+    }
+
+    clearDoorsAndKeys(color=null) {
+        if(this.doorCells) {
+            Object.keys(this.doorCells).forEach((c) => {
+                if(!color || c === color) 
+                    this.doorCells[c].forEach((cell) => {
+                        cell.clearDoor(undefined,c);
+                        cell.clearKey(c);
+                    });
+            });
+            delete this.doorCells;
+        }
+        if(this.keyCells) {
+            Object.keys(this.keyCells).forEach((c) => {
+                if(!color || c === color) 
+                    this.keyCells[c].clearKey(c);
+            });
+            delete this.keyCells;
+        }
+        this.doorOrder = undefined;
+        this.usingDoors = false;
     }
 
 }
@@ -787,21 +1024,101 @@ export class MazeCell {
         return wallKeys.filter((k) => this.walls[k]).length > 2; //3 or more sides on a 4 sided cell
     }
 
+    setDoor = (direction, color='chartreuse') => {
+        if(!this.doors) {
+            this.doors = {};
+        }
+        if(direction) {
+            if(this.walls[direction]) {
+                this.walls[direction] = false; //replace wall with door if it is a wall
+            }
+            this.doors[direction] = color;
+            return true;
+        }
+        else if(color) { //block all available directions
+            Object.keys(this.walls).forEach((k) => {
+                if(this.walls[k]) {
+                    return;
+                }
+                if(this.doors[k] === color) this.doors[k] = color;
+            });
+            return true;
+        }
+        return false;
+    }
+
+    clearDoor = (direction,color) => {
+        if(this.doors) {
+            if(direction) {
+                if(color) {
+                    Object.keys(this.doors).forEach((k) => {
+                        if(this.doors[k] === color) delete this.doors[direction];
+                    });
+                }
+                delete this.doors[direction];
+                return true;
+            }
+            else if(color) {
+                Object.keys(this.doors).forEach((k) => {
+                    if(this.doors[k] === color) delete this.doors[k];
+                });
+                return true;
+            } else for (door in this.doors) {
+                delete this.doors[door];
+            }
+        }
+        return false;
+    }
+
+    setKey = (color) => { //this cell has keys
+        if(!this.keys) {
+            this.keys = {};
+        }
+        this.keys[color] = true;
+    }
+
+    clearKey = (color) => {
+        if(this.keys?.[color]) delete this.keys[color];
+        else if(this.keys) for (const key in this.keys) {
+            delete this.keys[key];
+        }
+    }
+
     // Method to reset the cell's special states (start, end, path)
-    reset() {
+    reset = () => {
       this.isStart = false;
       this.isEnd = false;
       this.isPath = false;
     }
 
-    drawSquareCell = (context, size, strokeStyle='blue', fiddleheads, seed, bulkDraw) => {
+    drawSquareCell = (context, size, strokeStyle='blue', fiddleheads, seed, bulkDraw, drawDoorsAndKeys) => {
         
         if (this.isStart || this.isEnd) {
             context.fillStyle = this.isStart ? 'green' : this.isEnd ? 'red' : 'blue';
             context.fillRect(this.x * size, this.y * size, size, size);
-          }
+        }
+
+        if (drawDoorsAndKeys && this.keys) {
+            const keys = Object.keys(this.keys); // Assuming this.keys is an object where keys are colors
+            const numberOfKeys = keys.length;
+            const gridSize = Math.ceil(Math.sqrt(numberOfKeys)); // Grid size to determine rows and columns
+            const spacing = size / (gridSize + 1); // Spacing between circles
+            
+            for (let i = 0; i < numberOfKeys; i++) {
+                const row = Math.floor(i / gridSize);
+                const col = i % gridSize;
+                const xPosition = this.x * size + (col + 1) * spacing;
+                const yPosition = this.y * size + (row + 1) * spacing;
+                const radius = size / (2 * gridSize); // Radius of the circles, adjust as necessary
+        
+                context.fillStyle = keys[i]; // Set fill color to key color
+                context.beginPath();
+                context.arc(xPosition, yPosition, radius, 0, 2 * Math.PI);
+                context.fill();
+            }
+        }
   
-          if(fiddleheads) { //just a joke feature
+        if(fiddleheads) { //just a joke feature
               if (this.walls.up) {
                   drawWallWithSpirals(context, size, this.x * size, this.y * size, (this.x + 1) * size, this.y * size, 'up', seed, strokeStyle);
               }
@@ -814,38 +1131,57 @@ export class MazeCell {
               if (this.walls.left) {
                   drawWallWithSpirals(context, size, this.x * size, (this.y + 1) * size, this.x * size, this.y * size, 'left', seed, strokeStyle);
               }
-          }
-          else {
-              // Drawing the walls of the cell
-              context.strokeStyle = strokeStyle;
-              if(!bulkDraw) context.beginPath();
-              if (this.walls.up) {
-                  context.moveTo(this.x * size, this.y * size);
-                  context.lineTo((this.x + 1) * size, this.y * size);
-              }
-              
-              if(this.x === this.maze.width-1) {
-                if (this.walls.right) {
-                    context.moveTo((this.x + 1) * size, this.y * size);
-                    context.lineTo((this.x + 1) * size, (this.y + 1) * size);
-                }
-              }
-              if(this.y === this.maze.height - 1) {
-                if (this.walls.down) {
-                    context.moveTo((this.x + 1) * size, (this.y + 1) * size);
-                    context.lineTo(this.x * size, (this.y + 1) * size);
-                }
-              }
+        } else {
 
-              if (this.walls.left) {
-                  context.moveTo(this.x * size, (this.y + 1) * size);
-                  context.lineTo(this.x * size, this.y * size);
-              }
+            const drawWalls = (test=this.walls, strokeStyle) => {
+              // Drawing the walls of the cell
+                if(!bulkDraw) context.beginPath();
+                else if(strokeStyle) context.strokeStyle = strokeStyle;
+
+                if (test.up) {
+                    if(typeof test.up === 'string') context.strokeStyle = test.up;
+                    context.moveTo(this.x * size, this.y * size);
+                    context.lineTo((this.x + 1) * size, this.y * size);
+                }
+
+                if (test.left) {
+                    if(typeof test.left === 'string') context.strokeStyle = test.left;
+                    context.moveTo(this.x * size, (this.y + 1) * size);
+                    context.lineTo(this.x * size, this.y * size);
+                }
+
+                //more efficient not to redraw these 
+                if(drawDoorsAndKeys || this.x === this.maze.width-1) {
+                    if (test.right) {
+                        if(typeof test.right === 'string') context.strokeStyle = test.right;
+                        context.moveTo((this.x + 1) * size, this.y * size);
+                        context.lineTo((this.x + 1) * size, (this.y + 1) * size);
+                    }
+                }
+                if(drawDoorsAndKeys || this.y === this.maze.height - 1) {
+                    if (test.down) {
+                        if(typeof test.down === 'string') context.strokeStyle = test.down;
+                        context.moveTo((this.x + 1) * size, (this.y + 1) * size);
+                        context.lineTo(this.x * size, (this.y + 1) * size);
+                    }
+                }
               if(!bulkDraw) context.stroke();
-          }
+
+            }
+            
+            if(!drawDoorsAndKeys) drawWalls(this.walls, strokeStyle);
+            else if(this.doors) {
+                //console.log('drawdoors',bulkDraw,this.doors)
+                drawWalls(this.doors);
+            }
+          
+
+        }
+
+        
     }
 
-    drawOctagonalCell(context, size, strokeStyle, bulkDraw) {
+    drawOctagonalCell(context, size, strokeStyle='blue', bulkDraw, drawDoorsAndKeys) {
         // Calculate diagonal offset for drawing diagonal walls
         const diagonalOffset = size / (2 * Math.sqrt(2)); // Half diagonal of a square of side 'size'
     
@@ -854,57 +1190,111 @@ export class MazeCell {
             context.fillStyle = this.isStart ? 'green' : this.isEnd ? 'red' : 'blue';
             context.fillRect(this.x * size, this.y * size, size, size);
         }
+
+        
+        if (drawDoorsAndKeys && this.keys) {
+            const keys = Object.keys(this.keys); // Assuming this.keys is an object where keys are colors
+            const numberOfKeys = keys.length;
+            const gridSize = Math.ceil(Math.sqrt(numberOfKeys)); // Grid size to determine rows and columns
+            const spacing = size / (gridSize + 1); // Spacing between circles
+            
+            for (let i = 0; i < numberOfKeys; i++) {
+                const row = Math.floor(i / gridSize);
+                const col = i % gridSize;
+                const xPosition = this.x * size + (col + 1) * spacing;
+                const yPosition = this.y * size + (row + 1) * spacing;
+                const radius = size / (2 * (gridSize > 1 ? gridSize : 2)); // Radius of the circles, adjust as necessary
+        
+                context.fillStyle = keys[i]; // Set fill color to key color
+                context.beginPath();
+                context.arc(xPosition, yPosition, radius, 0, 2 * Math.PI);
+                context.fill();
+            }
+        }
+
+
+        const drawWalls = (test=this.walls, strokeStyle) => {
+            if(!bulkDraw) context.beginPath();
+            else if(strokeStyle) context.strokeStyle = strokeStyle;
+        
+            // Drawing orthogonal walls
+            if (test.up) {
+                if(typeof test.up === 'string') context.strokeStyle = test.up;
+                context.moveTo(this.x * size + diagonalOffset, this.y * size);
+                context.lineTo((this.x + 1) * size - diagonalOffset, this.y * size);
+            }
+
+            //more efficient to not draw repeatedly when drawing all cells
+            if(drawDoorsAndKeys || this.x === this.maze.width-1) {
+                if (test.right) {
+                    if(typeof test.right === 'string') context.strokeStyle = test.right;
+                    context.moveTo((this.x + 1) * size, this.y * size + diagonalOffset);
+                    context.lineTo((this.x + 1) * size, (this.y + 1) * size - diagonalOffset);
+                }
+            }
+            if(drawDoorsAndKeys || this.y === this.maze.height - 1) {
+                if(test.down) {
+                    if(typeof test.down === 'string') context.strokeStyle = test.down;
+                    context.moveTo((this.x + 1) * size - diagonalOffset, (this.y + 1) * size);
+                    context.lineTo(this.x * size + diagonalOffset, (this.y + 1) * size);
+                }
+            }
+
+            if (test.left) {
+                if(typeof test.left === 'string') context.strokeStyle = test.left;
+                context.moveTo(this.x * size, (this.y + 1) * size - diagonalOffset);
+                context.lineTo(this.x * size, this.y * size + diagonalOffset);
+            }
+        
+            // Drawing diagonal walls
+            if (test.upRight) {
+                if(typeof test.upRight === 'string') context.strokeStyle = test.upRight;
+                context.moveTo((this.x + 1) * size - diagonalOffset, this.y * size);
+                context.lineTo((this.x + 1) * size, this.y * size + diagonalOffset);
+            }
+            if (test.downRight) {
+                if(typeof test.downRight === 'string') context.trokeStyle = test.downRight;
+                context.moveTo((this.x + 1) * size, (this.y + 1) * size - diagonalOffset);
+                context.lineTo((this.x + 1) * size - diagonalOffset, (this.y + 1) * size);
+            }
+            if (test.downLeft) {
+                if(typeof test.downLeft === 'string') context.strokeStyle = test.downLeft;
+                context.moveTo(this.x * size + diagonalOffset, (this.y + 1) * size);
+                context.lineTo(this.x * size, (this.y + 1) * size - diagonalOffset);
+            }
+            if (test.upLeft) {
+                if(typeof test.upLeft === 'string') context.strokeStyle = test.upLeft;
+                context.moveTo(this.x * size, this.y * size + diagonalOffset);
+                context.lineTo(this.x * size + diagonalOffset, this.y * size);
+            }
+        
+            if(!bulkDraw) context.stroke();
     
-        context.strokeStyle = strokeStyle;
-        if(!bulkDraw) context.beginPath();
-    
-        // Drawing orthogonal walls
-        if (this.walls.up) {
-            context.moveTo(this.x * size + diagonalOffset, this.y * size);
-            context.lineTo((this.x + 1) * size - diagonalOffset, this.y * size);
         }
-        if (this.walls.right) {
-            context.moveTo((this.x + 1) * size, this.y * size + diagonalOffset);
-            context.lineTo((this.x + 1) * size, (this.y + 1) * size - diagonalOffset);
+
+        if(!drawDoorsAndKeys) drawWalls(this.walls, strokeStyle);
+        else if(this.doors) {
+            drawWalls(this.doors);
         }
-        if (this.walls.down) {
-            context.moveTo((this.x + 1) * size - diagonalOffset, (this.y + 1) * size);
-            context.lineTo(this.x * size + diagonalOffset, (this.y + 1) * size);
-        }
-        if (this.walls.left) {
-            context.moveTo(this.x * size, (this.y + 1) * size - diagonalOffset);
-            context.lineTo(this.x * size, this.y * size + diagonalOffset);
-        }
-    
-        // Drawing diagonal walls
-        if (this.walls.upRight) {
-            context.moveTo((this.x + 1) * size - diagonalOffset, this.y * size);
-            context.lineTo((this.x + 1) * size, this.y * size + diagonalOffset);
-        }
-        if (this.walls.downRight) {
-            context.moveTo((this.x + 1) * size, (this.y + 1) * size - diagonalOffset);
-            context.lineTo((this.x + 1) * size - diagonalOffset, (this.y + 1) * size);
-        }
-        if (this.walls.downLeft) {
-            context.moveTo(this.x * size + diagonalOffset, (this.y + 1) * size);
-            context.lineTo(this.x * size, (this.y + 1) * size - diagonalOffset);
-        }
-        if (this.walls.upLeft) {
-            context.moveTo(this.x * size, this.y * size + diagonalOffset);
-            context.lineTo(this.x * size + diagonalOffset, this.y * size);
-        }
-    
-        if(!bulkDraw) context.stroke();
     }
 
     // Method to draw the cell and its walls on a canvas context
-    draw(context, size, strokeStyle='blue', allowDiagonal=false, fiddleheads = false, seed, bulkDraw=false) {
+    draw(
+        context, 
+        size, 
+        strokeStyle='blue', 
+        allowDiagonal=false, 
+        fiddleheads = false, 
+        seed, 
+        bulkDraw=false, 
+        drawDoorsAndKeys=false
+    ) {
         // If the cell is marked as the start or end, fill it with a color
 
         if(allowDiagonal) {
-            this.drawOctagonalCell(context, size, strokeStyle, bulkDraw);
+            this.drawOctagonalCell(context, size, strokeStyle, bulkDraw, drawDoorsAndKeys);
         } else {
-            this.drawSquareCell(context, size, strokeStyle, fiddleheads, seed, bulkDraw)
+            this.drawSquareCell(context, size, strokeStyle, fiddleheads, seed, bulkDraw, drawDoorsAndKeys);
         }
     }
 }
@@ -1000,3 +1390,39 @@ function drawSpiral(context, startX, startY, size, turns, wallOrientation, seed,
     context.stroke();
 }
 
+
+
+function genCoordsWithExclusionZones(totalWidth, totalHeight, exclusionZones) {
+    let x, y, isValid;
+    while (!isValid) {
+        x = Math.floor(Math.random() * totalWidth);
+        y = Math.floor(Math.random() * totalHeight);
+        isValid = true;
+        for (let zone of exclusionZones) {
+            if (x >= zone.x && x <= zone.x + zone.width &&
+                y >= zone.y && y <= zone.y + zone.height) {
+                isValid = false;
+                break;
+            }
+        }
+    } 
+    return { x, y };
+}
+
+function isTooClose(startX, startY, endX, endY, startEdge, endEdge) {
+    // Check if end position is within 2 cells of start position on adjacent edges
+    if (startEdge === 0 && endEdge === 3 || startEdge === 3 && endEdge === 0) {
+        // Top and Left edges are adjacent
+        return Math.abs(startX - endX) < 3;
+    } else if (startEdge === 1 && endEdge === 2 || startEdge === 2 && endEdge === 1) {
+        // Right and Bottom edges are adjacent
+        return Math.abs(startX - endX) < 3;
+    } else if (startEdge === 0 && endEdge === 1 || startEdge === 1 && endEdge === 0) {
+        // Top and Right edges are adjacent
+        return Math.abs(startY - endY) < 3;
+    } else if (startEdge === 2 && endEdge === 3 || startEdge === 3 && endEdge === 2) {
+        // Bottom and Left edges are adjacent
+        return Math.abs(startY - endY) < 3;
+    }
+    return false;
+}
