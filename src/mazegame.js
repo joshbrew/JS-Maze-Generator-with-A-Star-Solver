@@ -120,7 +120,7 @@ export class MazeGame {
             this.maze.movePlayer('right', player, this.onPlayerCollision);
             this.maze.draw(this.context, this.cellSize, this.strokeStyle);
         }
-        if(upRightButton) {
+        if(document.getElementById(upRightButton)) {
             document.getElementById(upRightButton).onclick = () => {
                 MazeGame.activeGame = this;
                 this.maze.movePlayer('upRight', player, this.onPlayerCollision);
