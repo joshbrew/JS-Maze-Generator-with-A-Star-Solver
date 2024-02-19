@@ -603,6 +603,9 @@ export class Maze {
                     // If all players have the key, clear it from the cell
                     if (allPlayersHaveKey) {
                         newCell.clearKey(color); // Assuming clearKey is a method that removes the key from the cell
+                        this.doorCells[color].forEach((cell) => {
+                            cell.clearDoor(undefined,color);
+                        }); delete this.doorCells[color]; //clear doors too
                     }
                 });
 

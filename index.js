@@ -156,7 +156,7 @@ function generateMazeUI(
 }
 
 // Example usage
-generateMazeUI('Depth First', generateDepthFirstMaze, 20, 20, false,undefined,undefined,undefined,false,['purple'],true);
+generateMazeUI('Depth First', generateDepthFirstMaze, 20, 20, false,undefined,undefined,undefined,false,['purple'],false);
 generateMazeUI('Hunt & Kill', generateHuntAndKillMaze, 20, 20, true, undefined, 'darkred');
 generateMazeUI('Depth First Multipath', generateMultiPathDepthFirstMaze, 20, 20, false,undefined,undefined,undefined,true);
 generateMazeUI('Sidewinder', generateSidewinderMaze, 20, 20);
