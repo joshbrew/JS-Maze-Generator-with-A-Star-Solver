@@ -332,6 +332,9 @@ export class Maze {
                 this.visitedCells[key] = [];
                 this.setPlayer(this.start.x, this.start.y, key);
             }
+            // if(this.usingDoors) {
+            //     this.addDoorsAndKeys(this.start,this.end,this.doorOrder, this.maxCellsFromEnd, this.allowDiagonal, this.pathToDoor, true);
+            // }
         }
     }
 
