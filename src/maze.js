@@ -315,7 +315,7 @@ export class Maze {
 
     // Method to reset the maze
     // todo: reset keys and doors
-    reset(newGoal=true) {
+    reset = (newGoal=true) => {
         this.won = false;  // Reset the won flag
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
@@ -331,9 +331,6 @@ export class Maze {
             for(const key in this.players) {
                 this.visitedCells[key] = [];
                 this.setPlayer(this.start.x, this.start.y, key);
-            }
-            if(this.usingDoors) {
-                this.addDoorsAndKeys(this.start,this.end,this.doorOrder, this.maxCellsFromEnd, this.allowDiagonal, this.pathToDoor, true);
             }
         }
     }
@@ -403,9 +400,6 @@ export class Maze {
             startX, startY, endX, endY
         }
     }
-
-    
-
 
     connect(cell1, cell2, neighbors=true) {
         cell1.connect(cell2, neighbors);
@@ -644,6 +638,7 @@ export class Maze {
         
         // Reset the game for the next round (default behavior)
         this.reset();
+        
     }
 
 
@@ -738,7 +733,6 @@ export class Maze {
 
 
         this.usingDoors = true;
-        
         
         let solver = new AStarSolver(this);
        
