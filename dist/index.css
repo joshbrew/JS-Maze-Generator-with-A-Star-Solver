@@ -1,1 +1,132 @@
-body{background-color:darkslategray;color:white;font-family:Arial,sans-serif;line-height:1.6;margin:0;padding:20px}#game1,#game2{max-width:600px;margin:20px auto;padding:15px;border-radius:10px;box-shadow:0 0 10px rgba(0,0,0,0.1)}#game1 div,#game2 div{margin-bottom:15px}button{padding:8px 15px;font-size:16px;color:white;cursor:pointer;background-color:royalblue;border:0;border-radius:5px;margin-right:10px}button:hover{background-color:#4cae4c}input[type=number]{padding:8px;width:60px;border:1px solid #ddd;border-radius:5px;margin-right:10px}canvas{display:block;margin:0 auto;border:1px solid #ddd;background-color:black;min-width:360px}div{font-size:18px}.maze-container{position:relative;padding:50px}.maze-container-center{display:flex;justify-content:center;align-items:center;margin:110px;height:300px}.arrow-btn{cursor:pointer;background-color:transparent;color:black;border:2px solid black;border-radius:50%;width:50px;height:50px;display:flex;align-items:center;justify-content:center;position:absolute;font-size:24px;color:white;font-size:xx-large}.arrow-btn:hover{color:#4cae4c;background-color:transparent;border-color:green}.up-btn{top:-15px;left:50%;transform:translateX(-50%)}.down-btn{bottom:-15px;left:50%;transform:translateX(-50%)}.left-btn,.right-btn{top:50%;transform:translateY(-50%)}.left-btn{left:50%;transform:translateX(-25%) translateY(-50%);margin-left:-50%}.right-btn{left:50%;transform:translateX(-75%) translateY(-50%);margin-left:50%}
+/* index.css */
+body {
+  background-color: darkslategray;
+  color: white;
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  margin: 0;
+  padding: 20px;
+}
+#game1,
+#game2 {
+  max-width: 600px;
+  margin: 20px auto;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+#game1 div,
+#game2 div {
+  margin-bottom: 15px;
+}
+button {
+  padding: 8px 15px;
+  font-size: 16px;
+  color: white;
+  cursor: pointer;
+  background-color: royalblue;
+  border: 0;
+  border-radius: 5px;
+  margin-right: 10px;
+}
+button:hover {
+  background-color: #4cae4c;
+}
+input[type=number] {
+  padding: 8px;
+  width: 60px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  margin-right: 10px;
+}
+canvas {
+  display: block;
+  margin: 0 auto;
+  border: 1px solid #ddd;
+  background-color: black;
+  min-width: 360px;
+}
+div {
+  font-size: 18px;
+}
+.maze-container {
+  position: relative;
+  padding: 50px;
+}
+.maze-container-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 110px;
+  height: 300px;
+}
+.arrow-btn {
+  cursor: pointer;
+  background-color: transparent;
+  color: black;
+  border: 2px solid black;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  font-size: 24px;
+  color: white;
+  font-size: xx-large;
+}
+.arrow-btn:hover {
+  color: #4cae4c;
+  background-color: transparent;
+  border-color: green;
+}
+.up-btn {
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.down-btn {
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.left-btn,
+.right-btn {
+  top: 50%;
+  transform: translateY(-50%);
+}
+.left-btn {
+  left: 50%;
+  transform: translateX(-25%) translateY(-50%);
+  margin-left: -50%;
+}
+.right-btn {
+  left: 50%;
+  transform: translateX(-75%) translateY(-50%);
+  margin-left: 50%;
+}
+.up-left-btn {
+  top: -15px;
+  left: 50%;
+  transform: translateX(-25%);
+  margin-left: -50%;
+}
+.up-right-btn {
+  top: -15px;
+  left: 50%;
+  transform: translateX(-75%);
+  margin-left: 50%;
+}
+.down-left-btn {
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-25%);
+  margin-left: -50%;
+}
+.down-right-btn {
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-75%);
+  margin-left: 50%;
+}

@@ -47,7 +47,12 @@ export class MazeGame {
         document.getElementById(this.raceButtonId).onclick = () => this.raceAI();
     }
 
-    setGeneratorInputEvents = (genButton,genXInput,genYInput,animateButton, upButton, downButton, leftButton, rightButton) => {
+    setGeneratorInputEvents = (
+        genButton,genXInput,genYInput,animateButton, 
+        upButton, downButton, leftButton, rightButton,
+        upRightButton, upLeftButton, downRightButton, downLeftButton,
+        player=0
+    ) => {
 
         let animateonclick = () => {
             if(this.solver.animating) {
@@ -97,24 +102,47 @@ export class MazeGame {
         // Bind click events for arrow buttons
         document.getElementById(upButton).onclick = () => {
             MazeGame.activeGame = this;
-            this.maze.movePlayer('up', 0, this.onPlayerCollision);
+            this.maze.movePlayer('up', player, this.onPlayerCollision);
             this.maze.draw(this.context, this.cellSize, this.strokeStyle);
         }
         document.getElementById(leftButton).onclick = () => {
             MazeGame.activeGame = this;
-            this.maze.movePlayer('left', 0, this.onPlayerCollision);
+            this.maze.movePlayer('left', player, this.onPlayerCollision);
             this.maze.draw(this.context, this.cellSize, this.strokeStyle);
         }
         document.getElementById(downButton).onclick = () => {
             MazeGame.activeGame = this;
-            this.maze.movePlayer('down', 0, this.onPlayerCollision);
+            this.maze.movePlayer('down', player, this.onPlayerCollision);
             this.maze.draw(this.context, this.cellSize, this.strokeStyle);
         }
         document.getElementById(rightButton).onclick = () => {
             MazeGame.activeGame = this;
-            this.maze.movePlayer('right', 0, this.onPlayerCollision);
+            this.maze.movePlayer('right', player, this.onPlayerCollision);
             this.maze.draw(this.context, this.cellSize, this.strokeStyle);
         }
+        if(upRightButton) {
+            document.getElementById(upRightButton).onclick = () => {
+                MazeGame.activeGame = this;
+                this.maze.movePlayer('upRight', player, this.onPlayerCollision);
+                this.maze.draw(this.context, this.cellSize, this.strokeStyle);
+            }
+            document.getElementById(upLeftButton).onclick = () => {
+                MazeGame.activeGame = this;
+                this.maze.movePlayer('upLeft', player, this.onPlayerCollision);
+                this.maze.draw(this.context, this.cellSize, this.strokeStyle);
+            }
+            document.getElementById(downRightButton).onclick = () => {
+                MazeGame.activeGame = this;
+                this.maze.movePlayer('downRight', player, this.onPlayerCollision);
+                this.maze.draw(this.context, this.cellSize, this.strokeStyle);
+            }
+            document.getElementById(downLeftButton).onclick = () => {
+                MazeGame.activeGame = this;
+                this.maze.movePlayer('downLeft', player, this.onPlayerCollision);
+                this.maze.draw(this.context, this.cellSize, this.strokeStyle);
+            }
+        }
+        
     }
     
     setActive = () => {

@@ -114,3 +114,30 @@ body {
   transform: translateX(-75%) translateY(-50%); /* Adjust X translation for the right button */
   margin-left: 50%; /* This moves the button to the right edge of the maze-container */
 }
+
+.up-left-btn {
+  top: -15px; 
+  left: 50%; 
+  transform: translateX(-25%); /* Adjust X translation for the right button */
+  margin-left: -50%; /* This moves the button to the right edge of the maze-container */
+}
+
+.up-right-btn {
+  top: -15px;  
+  left: 50%; 
+  transform: translateX(-75%); /* Adjust X translation for the right button */
+  margin-left: 50%; /* This moves the button to the right edge of the maze-container */
+}
+
+.down-left-btn { 
+  bottom: -15px; 
+  left: 50%; 
+  transform: translateX(-25%); /* Adjust X translation for the right button */
+  margin-left: -50%; /* This moves the button to the right edge of the maze-container */
+}
+.down-right-btn {
+  bottom: -15px;  
+  left: 50%; 
+  transform: translateX(-75%); /* Adjust X translation for the right button */
+  margin-left: 50%; /* This moves the button to the right edge of the maze-container */
+}

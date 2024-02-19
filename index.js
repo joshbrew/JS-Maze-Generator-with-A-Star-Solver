@@ -54,15 +54,19 @@ function generateMazeUI(
           <button id="gen${mazeType}-${uniqueId}">Generate Maze</button>
       </div>
       <div class="maze-container-center">
-        <div id="maze-container-${uniqueId}" class="maze-container">
-          <button id="up-${uniqueId}" class="arrow-btn up-btn">↑</button>
-          <div class="horizontal-buttons">
-            <button id="left-${uniqueId}" class="arrow-btn left-btn">←</button>
-            <canvas id="canvas-${uniqueId}" style="width: 50%;" width="500" height="500"></canvas>
-            <button id="right-${uniqueId}" class="arrow-btn right-btn">→</button>
-          </div>
-          <button id="down-${uniqueId}" class="arrow-btn down-btn">↓</button>
+      <div id="maze-container-${uniqueId}" class="maze-container">
+        ${allowDiagonal ? `<button id="upLeft-${uniqueId}" class="arrow-btn up-left-btn">↖</button>` : ''}
+        <button id="up-${uniqueId}" class="arrow-btn up-btn">↑</button>
+        ${allowDiagonal ? `<button id="upRight-${uniqueId}" class="arrow-btn up-right-btn">↗</button>` : ''}
+        <div class="horizontal-buttons">
+          <button id="left-${uniqueId}" class="arrow-btn left-btn">←</button>
+          <canvas id="canvas-${uniqueId}" style="width: 50%;" width="500" height="500"></canvas>
+          <button id="right-${uniqueId}" class="arrow-btn right-btn">→</button>
         </div>
+        ${allowDiagonal ? `<button id="downLeft-${uniqueId}" class="arrow-btn down-left-btn">↙</button>` : ''}
+        <button id="down-${uniqueId}" class="arrow-btn down-btn">↓</button>
+        ${allowDiagonal ? `<button id="downRight-${uniqueId}" class="arrow-btn down-right-btn">↘</button>` : ''}
+    </div>
       </div>
     </div>
   `);
@@ -83,8 +87,10 @@ function generateMazeUI(
   mazeGame.setAIInputEvents(`${mazeType}intv-${uniqueId}`, `${mazeType}solve-${uniqueId}`, `${mazeType}race-${uniqueId}`);
   mazeGame.setGeneratorInputEvents(
     `gen${mazeType}-${uniqueId}`,`${mazeType}X-${uniqueId}`,`${mazeType}Y-${uniqueId}`, `${mazeType}animate-${uniqueId}`,
-      `up-${uniqueId}`, `down-${uniqueId}`, `left-${uniqueId}`, `right-${uniqueId}`
-    );
+    `up-${uniqueId}`, `down-${uniqueId}`, `left-${uniqueId}`, `right-${uniqueId}`,
+    `upRight-${uniqueId}`,`upLeft-${uniqueId}`,`downRight-${uniqueId}`,`downLeft-${uniqueId}`,
+    0
+  );
 
 
 
@@ -156,12 +162,12 @@ function generateMazeUI(
 }
 
 // Example usage
+generateMazeUI('Hunt & Kill w/ Braids And Doors', generateHuntAndKillWithBraidsMaze, 20, 20, false, false, 'magenta', true, false, ['yellow', 'turquoise', 'red']);
 generateMazeUI('Depth First', generateDepthFirstMaze, 20, 20, false,undefined,undefined,undefined,false,['purple'],false);
 generateMazeUI('Hunt & Kill', generateHuntAndKillMaze, 20, 20, true, undefined, 'darkred');
 generateMazeUI('Depth First Multipath', generateMultiPathDepthFirstMaze, 20, 20, false,undefined,undefined,undefined,true);
 generateMazeUI('Sidewinder', generateSidewinderMaze, 20, 20);
 generateMazeUI('Ellers', generateEllersMaze, 20, 20);
-generateMazeUI('Hunt & Kill w/ Braids Octagonal', generateHuntAndKillWithBraidsMaze, 20, 20, false, false, 'magenta', true, false, ['yellow', 'turquoise', 'red']);
 generateMazeUI('No Dead Ends', noDeadEnds, 20, 20, false, true, 'brown'); 
 generateMazeUI('Spiraling', noDeadEndsSpiral, 100, 100); 
 // Add more calls to `generateMazeUI` for additional mazes as needed.
