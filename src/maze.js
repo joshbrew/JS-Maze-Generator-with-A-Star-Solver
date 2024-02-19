@@ -380,12 +380,15 @@ export class Maze {
         // Select a different end edge from the start edge
         //let endEdge = (startEdge + 2) % 4; // This ensures opposite edge, remove this logic if you want a random different edge but not opposite
        
-            // Calculate a safe range for end positions to avoid being too close to start
+        // Select a different end edge from the start edge
+        let possibleEndEdges = [0, 1, 2, 3].filter(e => e !== startEdge);
+        let endEdge = possibleEndEdges[Math.floor(this.seed.random() * possibleEndEdges.length)];
+        
+        // Calculate a safe range for end positions to avoid being too close to start
         let safeEndRanges = {
             x: [0, this.width - 1],
             y: [0, this.height - 1]
         };
-        
         // Adjust the safe range based on startEdge to enforce distance
         if (startEdge === 0 || startEdge === 2) {
             // Adjust horizontal range to avoid being too close
@@ -395,9 +398,6 @@ export class Maze {
             safeEndRanges.y = [Math.max(0, startY - 2), Math.min(this.height - 1, startY + 2)];
         }
 
-        // Select a different end edge from the start edge
-        let possibleEndEdges = [0, 1, 2, 3].filter(e => e !== startEdge);
-        let endEdge = possibleEndEdges[Math.floor(this.seed.random() * possibleEndEdges.length)];
 
         let endX, endY;
         // Assign end position based on endEdge, ensuring it's not too close to the start
@@ -740,7 +740,7 @@ export class Maze {
     }
 
     //generalized door solver, should work on multipath mazes too
-    addDoorsAndKeys(start, end, doorOrder=['chartreuse'], maxCellsFromEnd=3, allowDiagonal, pathToDoor='last', clearPrev = true) {
+    addDoorsAndKeys(start, end, doorOrder=['chartreuse'], maxCellsFromEnd=3, allowDiagonal=this.allowDiagonal, pathToDoor='last', clearPrev = true) {
         
         if(this.usingDoors && clearPrev) this.clearDoorsAndKeys();
         
@@ -763,46 +763,54 @@ export class Maze {
 
         let goal = end;
         let maxDistance = 0;
-
         let lastColor; let lastColorIdx = 0; //need to rotate thru all possible directions to block em off
+       
+        const setDoor = (path, color) => {
+            if(path.length === 0) return false;
+            let idx = Math.floor(2 + Math.random() * maxCellsFromEnd); //varying the door placement along the path to make it more interesting
+            let dist = path.length - idx; 
+            if(dist < 1) dist = path.length-1;
+            let cell = path[dist - 1];
+            let cell2 = path[dist];
+            if(dist > maxDistance) maxDistance = dist;
+            if (!cell || !cell2) return false;
+            let d = this.getDirection(cell, cell2);
+            cell.setDoor(d, color);
+            if(allowDiagonal) {
+                this.getAdjacentDirections(d, allowDiagonal).forEach((ad) => {
+                    if(!cell.walls[ad] && !cell.doors[ad]) {
+                        cell.setDoor(ad,color);
+                    }
+                })
+            }
+            doorCells[color] = doorCells[color] || [];
+            if (doorCells[color][doorCells[color].length - 1] !== cell) {
+                doorCells[color].push(cell);
+            } else {
+                return false;
+            }
+            return true;
+        };
+
+        outer:
         for(let i = doorOrder.length - 1; i >= 0; i--) {
             let color = doorOrder[i];
-
+            
             solver.reset(); //reset solver
             let path = solver.solve(start.x, start.y, goal.x, goal.y, allowDiagonal, { keys: {} }); //if we do not posess a key of a color, doors act like walls
             if(path?.length < 1) throw new Error('unsolvable');
             doorPaths[color] = [...path]; //store first path to goal/door (probably least convoluted path)
 
             if (path[path.length - 1] === goal) {
+                inner:
                 while (true) {
-                    const setDoor = () => {
-                        if (path[path.length - 1] === goal) {
-                            let idx = Math.floor(2 + Math.random() * maxCellsFromEnd); //varying the door placement along the path to make it more interesting
-                            let dist = path.length - idx;
-                            let cell = path[dist - 1];
-                            let cell2 = path[dist];
-                            if(dist > maxDistance) maxDistance = dist;
-                            if (!cell || !cell2) return false;
-                            let d = this.getDirection(cell, cell2);
-                            cell.setDoor(d, color);
-                            if(allowDiagonal) {
-                                this.getAdjacentDirections(d, allowDiagonal).forEach((ad) => {
-                                    if(!cell.walls[ad] && !cell.doors[ad]) {
-                                        cell.setDoor(ad,color);
-                                    }
-                                })
-                            }
-                            doorCells[color] = doorCells[color] || [];
-                            if (doorCells[color][doorCells[color].length - 1] !== cell) {
-                                doorCells[color].push(cell);
-                            } else {
-                                return false;
-                            }
-                        }
-                        return true;
-                    };
-    
-                    if (!setDoor() && (!lastColor || lastColorIdx < doorCells[lastColor].length - 1)) break;
+                    
+                    if (
+                        path[path.length - 1] === goal && !setDoor(path, color) && 
+                        (!lastColor || lastColorIdx === doorCells[lastColor].length - 1)
+                    ) {
+                        break inner;
+                    }
     
                     let pathCpy = [...path]; // Copy path since solver will reuse array memory
                     solver.reset(); // Reset solver
@@ -812,6 +820,7 @@ export class Maze {
     
                     //if goal now not solvable move onto next door in previous color list or break
                     if (newPath[newPath.length - 1] !== goal) {
+                        setDoor(path, color);
                         // Check if there are remaining doors from the last color to block off
                         if (lastColor && lastColorIdx < doorCells[lastColor].length - 1) {
                             lastColorIdx++;
@@ -825,7 +834,7 @@ export class Maze {
                             if (pathToDoor === 'last') {
                                 doorPaths[color] = pathCpy; // Use the last path to the door (longest path)
                             }
-                            break; // Exit the loop to move on to the next door color
+                            break inner; // Exit the loop to move on to the next door color
                         }
                     }
     
@@ -834,9 +843,9 @@ export class Maze {
                 }
             }
 
+
             //lets place a key
             if(pathToDoor === 'random') {
-
                 let endCoords = (1+maxCellsFromEnd)*Object.keys(keyCells).length;
                 const canBeExcluded = (this.width > endCoords && this.height > endCoords);
                 let cell;
@@ -863,13 +872,13 @@ export class Maze {
                 }
                 //console.log(doorPaths[color])
                 let idx = Math.floor(Math.random()*(max-min)) + min;
-                if(!doorPaths[color][idx]) idx = 1;
+                if(!doorPaths[color][idx]) idx = 0;
                 doorPaths[color][idx].setKey(color); //place a key on this random point in the path to the door
                 
                 keyCells[color] = doorPaths[color][idx];
                 keyPaths[color] = solver.solve(start.x,start.y,doorPaths[color][idx].x,doorPaths[color][idx].y,allowDiagonal);
             } else {
-                console.error("No path for",color);
+                console.error("No path for", color);
             }
         }
 
@@ -882,6 +891,7 @@ export class Maze {
             doorPaths,
             keyPaths
         };
+
 
         //now that we did the doors, lets do the keys
         return result; //all doors set successfully, now draw maze to see result
