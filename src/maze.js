@@ -973,8 +973,39 @@ export class Maze {
 }
 
 let wallKeys = ['up', 'right', 'down', 'left'];
+
+let wallKeys3D = ['up', 'right', 'down', 'left', 'above', 'below'];
+
 let wallKeysOct = ['up', 'right', 'down', 'left', 'upRight', 'upLeft', 'downRight', 'downLeft'];
 
+let wallKeys3DOct = [
+    'up', 'right', 'down', 'left', 
+    'upRight', 'upLeft', 'downRight', 'downLeft', 
+    'above', 'below',
+    'aboveUp', 'aboveRight', 'aboveDown', 'aboveLeft', 
+    'aboveUpRight', 'aboveUpLeft', 'aboveDownRight', 'aboveDownLeft', 
+    'belowUp', 'belowRight', 'belowDown', 'belowLeft', 
+    'belowUpRight', 'belowUpLeft', 'belowDownRight', 'belowDownLeft'
+];
+
+let walls3D = {
+    // Original 2D octagonal directions
+    up: true, right: true, down: true, left: true,
+    upRight: true, upLeft: true, downRight: true, downLeft: true,
+
+    // Vertical directions
+    above: true, below: true,
+
+    // Diagonal upwards in the plane directions
+    aboveUp: true, aboveRight: true, aboveDown: true, aboveLeft: true,
+    // Diagonal upwards with diagonal directions
+    aboveUpRight: true, aboveUpLeft: true, aboveDownRight: true, aboveDownLeft: true,
+
+    // Diagonal downwards in the plane directions
+    belowUp: true, belowRight: true, belowDown: true, belowLeft: true,
+    // Diagonal downwards with diagonal directions
+    belowUpRight: true, belowUpLeft: true, belowDownRight: true, belowDownLeft: true
+};
 
 //object representation of a maze cell in an xy grid
 export class MazeCell {
@@ -992,11 +1023,13 @@ export class MazeCell {
     connections = {}; //more general connection structure
     maze;
     // Constructor to initialize a cell at (x, y) coordinates
-    constructor(x, y, maze) {
+    constructor(x, y, maze, threeDimensional=false) {
         // Storing the x and y coordinates
         this.x = x;
         this.y = y;
         this.maze = maze;
+
+        if(threeDimensional) Object.assign(this.walls, walls3D);
     }
   
     // Method to remove walls between this cell and another cell
@@ -1096,7 +1129,11 @@ export class MazeCell {
     }
   
     isDeadEnd(allowDiagonal) {
-        if(allowDiagonal) return wallKeysOct.filter((k) => this.walls[k]).length > 4; //5 or more sides on an 8 sided cell
+        if(allowDiagonal) {
+            if(allowDiagonal === 2) wallKeys3D.filter(this.walls[k]).length > 8
+            else if (allowDiagonal === 3) wallKeys3DOct.filter(this.walls[k]).length > 12; 
+            return wallKeysOct.filter((k) => this.walls[k]).length > 6; //7 sides on an 8 sided cell
+        }
         return wallKeys.filter((k) => this.walls[k]).length > 2; //3 or more sides on a 4 sided cell
     }
 

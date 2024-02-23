@@ -132,16 +132,11 @@ export class FlowField {
             if (!mazeCell.walls.downLeft && ((i <= 2 && j >= 4) || (j === 4 && i <= 2) || (i === 2 && j >= 4))) return 1; // downLeft passage
             if (!mazeCell.walls.downRight && ((i >= 4 && j >= 4) || (j === 4 && i >= 4) || (i === 4 && j >= 4))) return 1; // downRight passage
         
-            if( i === 0 && j === 0 && maze.getNeighbor(mazeCell,'left')?.walls.upRight === false) return 1;
-            if( i === 6 && j === 0 && maze.getNeighbor(mazeCell,'right')?.walls.upLeft === false) return 1;
-            if( i === 0 && j === 6 && maze.getNeighbor(mazeCell,'left')?.walls.downRight === false) return 1;
-            if( i === 6 && j === 6 && maze.getNeighbor(mazeCell,'right')?.walls.downLeft === false) return 1;
+            if( i === 0 && j === 0 && (maze.getNeighbor(mazeCell,'left')?.walls.upRight === false || maze.getNeighbor(mazeCell,'up')?.walls.downLeft === false)) return 1;
+            if( i === 0 && j === 6 && (maze.getNeighbor(mazeCell,'left')?.walls.downRight === false || maze.getNeighbor(mazeCell,'down')?.walls.upLeft === false)) return 1;
+            if( i === 6 && j === 0 && (maze.getNeighbor(mazeCell,'right')?.walls.upLeft === false || maze.getNeighbor(mazeCell,'up')?.walls.downRight === false)) return 1;
+            if( i === 6 && j === 6 && (maze.getNeighbor(mazeCell,'right')?.walls.downLeft === false || maze.getNeighbor(mazeCell,'down')?.walls.upRight === false)) return 1;
 
-            
-            if( i === 0 && j === 0 && maze.getNeighbor(mazeCell,'up')?.walls.downLeft === false) return 1;
-            if( i === 6 && j === 0 && maze.getNeighbor(mazeCell,'up')?.walls.downRight === false) return 1;
-            if( i === 0 && j === 6 && maze.getNeighbor(mazeCell,'down')?.walls.upLeft === false) return 1;
-            if( i === 6 && j === 6 && maze.getNeighbor(mazeCell,'down')?.walls.upRight === false) return 1;
         }
     
         // All other cells are passable
