@@ -879,9 +879,11 @@ export class Maze {
                         setKey();
                         k++;
                     }
-                    if(k === 5 && keyPaths[color][keyPaths[color].length - 1] !== keyCells[color])
-                        keyCells[color] = doorPaths[color][0];
-                    else if(cell) {
+                    
+                    if(k === 5 && keyPaths[color][keyPaths[color].length - 1] !== cell) {
+                        keyCells[color] = this.start;
+                        doorPaths[color][0].setKey(color)
+                    } else if(cell) {
                         cell.setKey(color);
                         keyCells[color] = cell;
                     }
@@ -913,9 +915,11 @@ export class Maze {
                         setKey();
                         k++;
                     }
-                    if(k === 5 && keyPaths[color][keyPaths[color].length - 1] !== cell)
-                        keyCells[color] = doorPaths[color][0];
-                    else if (cell) {
+                    
+                    if(k === 5 && keyPaths[color][keyPaths[color].length - 1] !== cell) {
+                        keyCells[color] = this.start;
+                        doorPaths[color][0].setKey(color)
+                    } else if (cell) {
                         cell.setKey(color); //place a key on this random point in the path to the door
                         keyCells[color] = cell;
                     }
