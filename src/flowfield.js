@@ -484,7 +484,7 @@ export class FlowField {
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.lineTo(endX, endY);
-        ctx.strokeStyle = 'black';
+        ctx.strokeStyle = 'rgba(0,0,255,0.5)';
         ctx.lineWidth = 2;
         ctx.stroke();
     
@@ -562,7 +562,7 @@ export class FlowField {
 
 
 class Dot {
-    constructor(x, y, speed = 0.1, mass = 1, maxValue=Infinity) {
+    constructor(x, y, speed = 0.3, mass = 1, maxValue=Infinity) {
         this.x = x;
         this.y = y;
         this.baseSpeed = speed;

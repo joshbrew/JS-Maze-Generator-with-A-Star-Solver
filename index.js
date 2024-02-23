@@ -209,7 +209,7 @@ for (let y = 0; y < 20; y++) {
 const flowFieldOptions = {
   allowDiagonal: true,
   avoidance:2,
-  avoidanceDampen:1.5,
+  avoidanceDampen:0.5,
   maze:new Maze(20, 20, generateMultiPathDepthFirstMaze, undefined, undefined, true)
   // costField: exampleGrid,
   // costRules: costRules
