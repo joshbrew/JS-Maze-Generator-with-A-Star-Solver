@@ -155,7 +155,8 @@ function generateMazeUI(
       maze, 
       `${uniqueId}renderCanvas`, 
       `${uniqueId}fps`, 
-      `gen${mazeType}-${uniqueId}`
+      `gen${mazeType}-${uniqueId}`,
+      allowDiagonal
     );
   }
 
@@ -164,7 +165,7 @@ function generateMazeUI(
 // Example usage
 generateMazeUI('Hunt & Kill w/ Braids And Doors', generateHuntAndKillWithBraidsMaze, 20, 20, false, false, 'magenta', true, false, ['yellow', 'turquoise', 'red']);
 generateMazeUI('Depth First', generateDepthFirstMaze, 20, 20, false,undefined,undefined,undefined,false,['purple'],false);
-generateMazeUI('Hunt & Kill', generateHuntAndKillMaze, 20, 20, true, undefined, 'darkred');
+generateMazeUI('Hunt & Kill', generateHuntAndKillMaze, 20, 20, true, undefined, 'darkred', true);
 generateMazeUI('Depth First Multipath', generateMultiPathDepthFirstMaze, 20, 20, false,undefined,undefined,undefined,true);
 generateMazeUI('Sidewinder', generateSidewinderMaze, 20, 20);
 generateMazeUI('Ellers', generateEllersMaze, 20, 20);
@@ -209,7 +210,7 @@ for (let y = 0; y < 20; y++) {
 const flowFieldOptions = {
   allowDiagonal: true,
   avoidance:2,
-  avoidanceDampen:0.5,
+  avoidanceDampen:0.6,
   maze:new Maze(20, 20, generateMultiPathDepthFirstMaze, undefined, undefined, true)
   // costField: exampleGrid,
   // costRules: costRules
@@ -250,7 +251,7 @@ flowField.visualize(cv);
 
 
 
-async function setupBabylonJS(maze, canvasId, fpsdivId, genbuttonId) {
+async function setupBabylonJS(maze, canvasId, fpsdivId, genbuttonId, allowDiagonal) {
   
   // Get the canvas DOM element
   let canvas = document.getElementById(canvasId);
@@ -268,7 +269,7 @@ async function setupBabylonJS(maze, canvasId, fpsdivId, genbuttonId) {
   }
 
   function resetBabMaze() {
-    setupScene();
+    setupScene(allowDiagonal);
     // setupShadowGenerator();
     // clearWallsAndFloors();
     // setInstances();
@@ -279,7 +280,7 @@ async function setupBabylonJS(maze, canvasId, fpsdivId, genbuttonId) {
     resetBabMaze();
   });
 
-  function setupScene() {
+  function setupScene(allowDiagonal) {
     if(scene) {
       scene.dispose();
       engine.stopRenderLoop(renderFunction);
@@ -315,7 +316,10 @@ async function setupBabylonJS(maze, canvasId, fpsdivId, genbuttonId) {
     setupShadowGenerator();
     
     // Create a built-in "box" shape; its constructor takes 6 params: name, size, scene, updatable, sideOrientation
-    let wall = BABYLON.MeshBuilder.CreateBox('wall', {height: 1, width: 0.1, depth: 1}, scene);
+    let wall;
+    
+    if(allowDiagonal) wall = BABYLON.MeshBuilder.CreateBox('wall', {height: 1, width: 0.1, depth: 1/Math.sqrt(6)}, scene);
+    else wall = BABYLON.MeshBuilder.CreateBox('wall', {height: 1, width: 0.1, depth: 1}, scene);
 
     wall.receiveShadows = true;
     wall.isVisible = false; // Set the original wall as invisible; it's just a template
@@ -325,11 +329,12 @@ async function setupBabylonJS(maze, canvasId, fpsdivId, genbuttonId) {
 
     wallMaterial.shadowEnabled = true;
 
+
     // Function to create and position a wall based on the MazeCell
     function createWall(cell, direction) {
         let instance = wall.createInstance('wall_' + cell.x + '_' + cell.y + '_' + direction);
         instance.isVisible = true;
-        shadowMap.renderList.push(instance)
+        shadowMap.renderList.push(instance);
       switch (direction) {
         case 'up':
           instance.position = new BABYLON.Vector3(cell.x * cellSize - cellOffset, cellOffset, cell.y * cellSize - cellSize);
@@ -352,7 +357,44 @@ async function setupBabylonJS(maze, canvasId, fpsdivId, genbuttonId) {
           instance.rotation.y = 0; // Wall is perpendicular to the x-axis
           break;
       }
-        
+      if(allowDiagonal) {
+        let radius = cellSize / 2
+         switch(direction) {
+          case 'upLeft':
+            instance.position = new BABYLON.Vector3(
+                cell.x * cellSize + radius * Math.cos(5 * Math.PI / 4) - radius, // x position
+                0.5, // y position (assuming walls are centered vertically)
+                cell.y * cellSize + radius * Math.sin(5 * Math.PI / 4) - radius // z position
+            );
+            instance.rotation.y = 3 * Math.PI / 4; // 45 degrees for diagonal alignment
+            break;
+        case 'upRight':
+            instance.position = new BABYLON.Vector3(
+                cell.x * cellSize + radius * Math.cos(7 * Math.PI / 4) - radius,
+                0.5,
+                cell.y * cellSize + radius * Math.sin(7 * Math.PI / 4) - radius
+            );
+            instance.rotation.y = Math.PI / 4; // -45 degrees for diagonal alignment
+            break;
+        case 'downLeft':
+            instance.position = new BABYLON.Vector3(
+                cell.x * cellSize + radius * Math.cos(3 * Math.PI / 4) - radius,
+                0.5,
+                cell.y * cellSize + radius * Math.sin(3 * Math.PI / 4) - radius
+            );
+            instance.rotation.y = Math.PI / 4; // -135 degrees for diagonal alignment
+            break;
+        case 'downRight':
+            instance.position = new BABYLON.Vector3(
+                cell.x * cellSize + radius * Math.cos(Math.PI / 4) - radius,
+                0.5,
+                cell.y * cellSize + radius * Math.sin(Math.PI / 4) - radius
+            );
+            instance.rotation.y = 3 * Math.PI / 4; // 135 degrees for diagonal alignment
+            break;
+        }
+      }
+
     }
 
 
@@ -452,7 +494,7 @@ async function setupBabylonJS(maze, canvasId, fpsdivId, genbuttonId) {
 
   }
 
-  setupScene();
+  setupScene(allowDiagonal);
 
   // Resize the engine on window resize
   window.addEventListener('resize', function () {
