@@ -73,32 +73,42 @@ export class FlowField {
         }
         for (let y = 0; y < maze.height; y++) {
             for (let x = 0; x < maze.width; x++) {
-                this.setCostFieldMazeCell(x, y, maze.cells[y][x], costField);
+                this.setCostFieldMazeCell(x, y, maze.cells[y][x], costField, maze);
             }
         }
 
         return costField;
     }
 
-    setCostFieldMazeCell(x, y, mazeCell, costField) {
+    setCostFieldMazeCell(x, y, mazeCell, costField, maze) {
         // Define the 7x7 subgrid for each MazeCell
         const baseX = x * 7;
         const baseY = y * 7;
-        const offset = this.allowDiagonals ? 1 : 0;
 
         // Set costs for the entire 7x7 grid
         for (let i = 0; i < 7; i++) {
             for (let j = 0; j < 7; j++) {
                 // The corners and edges are walls if allowDiagonals is true
-                let cost = this.calculateCostForMazePosition(i, j, mazeCell, offset);
+                let cost = this.calculateCostForMazePosition(i, j, mazeCell, maze);
                 costField[baseY + j][baseX + i] = cost;
             }
         }
     }
 
-    calculateCostForMazePosition(i, j, mazeCell) {
-       // Passable inner 3x3 grid (center)
-        if (i >= 1 && i <= 5 && j >= 1 && j <= 5) {
+    calculateCostForMazePosition(i, j, mazeCell, maze) {
+       // Passable inner 5x5 grid (center)
+        if (i >= 1  && i <= 5 && j >= 1 && j <= 5) {
+            if (this.allowDiagonal) { 
+                if(
+                    (i === 1 && j === 1 && mazeCell.walls.upLeft && mazeCell.walls.up && mazeCell.walls.left) ||
+                    (i === 5 && j === 1 && mazeCell.walls.upRight && mazeCell.walls.up && mazeCell.walls.right) ||
+                    (i === 1 && j === 5 && mazeCell.walls.downLeft && mazeCell.walls.down && mazeCell.walls.left) ||
+                    (i === 5 && j === 5 && mazeCell.walls.downRight && mazeCell.walls.down && mazeCell.walls.right)
+                ) {
+                    return this.maxValue;
+                }
+
+            }
             return 1;
         }
 
@@ -113,11 +123,25 @@ export class FlowField {
         if (!mazeCell.walls.right && (i >= 5) && (j >= 1 && j <= 5)) return 1;
 
     
-        // Handle passable diagonal walls if diagonals are allowed
-        if (this.allowDiagonals) {
-            // Add conditions for diagonal walls here based on your specifications for diagonal openings
-            if(mazeCell.walls.upLeft && (j <= 3) && (i < 3) && !((j === 3 && i === 0) || (i === 3 && j === 0))) return 1; //this should create a navigable corner passage
-            //todo at the end we need to make a second pass to open up the corners on adjacent cells
+        // Diagonal walls when diagonals are allowed
+        if (this.allowDiagonal) {
+            // upLeft correction and additional diagonals
+            // Assuming 'mazeCell.walls.upLeft' being false means the wall is open.
+            if (!mazeCell.walls.upLeft && ((i <= 2 && j <= 2) || (j === 2 && i <= 2) || (i === 2 && j <= 2))) return 1; // Corrected condition for upLeft
+            if (!mazeCell.walls.upRight && ((i >= 4 && j <= 2) || (j === 2 && i >= 4) || (i === 4 && j <= 2))) return 1; // upRight passage
+            if (!mazeCell.walls.downLeft && ((i <= 2 && j >= 4) || (j === 4 && i <= 2) || (i === 2 && j >= 4))) return 1; // downLeft passage
+            if (!mazeCell.walls.downRight && ((i >= 4 && j >= 4) || (j === 4 && i >= 4) || (i === 4 && j >= 4))) return 1; // downRight passage
+        
+            if( i === 0 && j === 0 && maze.getNeighbor(mazeCell,'left')?.walls.upRight === false) return 1;
+            if( i === 6 && j === 0 && maze.getNeighbor(mazeCell,'right')?.walls.upLeft === false) return 1;
+            if( i === 0 && j === 6 && maze.getNeighbor(mazeCell,'left')?.walls.downRight === false) return 1;
+            if( i === 6 && j === 6 && maze.getNeighbor(mazeCell,'right')?.walls.downLeft === false) return 1;
+
+            
+            if( i === 0 && j === 0 && maze.getNeighbor(mazeCell,'up')?.walls.downLeft === false) return 1;
+            if( i === 6 && j === 0 && maze.getNeighbor(mazeCell,'up')?.walls.downRight === false) return 1;
+            if( i === 0 && j === 6 && maze.getNeighbor(mazeCell,'down')?.walls.upLeft === false) return 1;
+            if( i === 6 && j === 6 && maze.getNeighbor(mazeCell,'down')?.walls.upRight === false) return 1;
         }
     
         // All other cells are passable
