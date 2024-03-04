@@ -9,6 +9,8 @@ export class FlowField {
 
     maxValue = Infinity;
     avoidance=1.5; avoidanceDampen=0.5; avoidObstacles=true;
+    speedModifier=0.3; //e.g. used for tick updates or as a multiplier effect on velocities (your choice)
+
 
     constructor(
         options
@@ -26,6 +28,8 @@ export class FlowField {
             this.width = options.width;
             this.height = options.height;
         }
+
+        if(options.speedModifier) this.speedModifier = options.speedModifier;
         if(options.avoidObstacles) options.avoidObstacles = true;
         if(options.maxValue) this.maxValue = options.maxValue;
         if('avoidance' in options) this.avoidance = options.avoidance;
@@ -34,7 +38,7 @@ export class FlowField {
         else this.costField = options.costField ? options.costField : options.maze ? this.setMazeTerrain(options.maze) : this.initializeGrid(1);
         
         this.integrationField = this.initializeGrid(this.maxValue);
-        this.flowField = this.initializeGrid({ cost: this.maxValue, direction: null });
+        this.flowField = this.initializeGrid({ x:0, y:0 });
     }
 
     applyCostRules(costField, costRules) {
@@ -58,10 +62,32 @@ export class FlowField {
 
     initializeGrid(defaultValue, width = this.width, height = this.height) {
         let grid = new Array(height);
-        for (let y = 0; y < height; y++) {
-            grid[y] = new Array(width).fill(defaultValue);
+        let isObj = typeof defaultValue === 'object';
+        if(isObj) {
+            for (let y = 0; y < height; y++) {
+                grid[y] = new Array(width);
+                for(let x = 0; x < width; x++) {
+                    grid[y][x] = Object.assign({}, defaultValue);
+                }
+            }
         }
+        else {
+            for (let y = 0; y < height; y++) {
+                grid[y] = new Array(width).fill(defaultValue);
+            }
+        }
+        
         return grid;
+    }
+
+    //2d array
+    setCostField(grid, width, height, allowDiagonal) {
+        if(width) this.width = width;
+        if(height) this.height = height;
+        if(allowDiagonal) this.allowDiagonal = allowDiagonal;
+        this.costField = grid;
+        this.integrationField = this.initializeGrid(this.maxValue);
+        this.flowField = this.initializeGrid({ cost: this.maxValue, direction: null });
     }
 
     setMazeTerrain = (maze) => {
@@ -144,6 +170,7 @@ export class FlowField {
     }
 
     updateField(goalX, goalY) { 
+
         // Validate goal coordinates
         if (goalX < 0 || goalX >= this.width || goalY < 0 || goalY >= this.height) {
             console.error('Goal coordinates are out of bounds');
@@ -154,15 +181,18 @@ export class FlowField {
             console.error('Goal is on an impassable terrain');
         }
 
+        console.time('flowfield');
         // Reset fields before recalculating
         this.integrationField = this.initializeGrid(this.maxValue);
-        this.flowField = this.initializeGrid({ cost: this.maxValue, direction: null });
+        this.flowField = this.initializeGrid({ x:0, y:0 });
 
         this.calculateIntegrationField(goalX, goalY);
         
         this.calculateFlowField();
 
         this.convolveFlowField(); 
+
+        console.timeEnd('flowfield');
     }
 
     calculateIntegrationField(goalX, goalY) {
@@ -183,33 +213,33 @@ export class FlowField {
     }
 
     calculateFlowField() {
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                if (this.costField[y][x] !== this.maxValue) {
-                    let lowestCost = this.maxValue;
+        const {width, height, costField, maxValue, integrationField, flowField, avoidObstacles, avoidance, avoidanceDampen} = this;
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                if (costField[y][x] !== maxValue) {
+                    let lowestCost = maxValue;
                     let direction = null;
                     let hasImpassableNeighbor = false;
                     let impassableNeighborDirection = { x: 0, y: 0 };
     
                     this.getNeighbors(x, y).forEach(({nx, ny}) => {
-                        let neighborCost = this.integrationField[ny][nx];
+                        let neighborCost = integrationField[ny][nx];
                         if (neighborCost < lowestCost) {
                             lowestCost = neighborCost;
                             direction = {x: nx - x, y: ny - y};
                         }
-                        if (this.costField[ny][nx] === this.maxValue) {
+                        if (costField[ny][nx] === maxValue) {
                             hasImpassableNeighbor = true;
                             impassableNeighborDirection.x += nx - x;
                             impassableNeighborDirection.y += ny - y;
                         }
                     });
     
-                    if (direction && hasImpassableNeighbor && this.avoidObstacles) {
-                        // Adjust direction to be away from impassable neighbor
-                        direction = this.adjustDirectionAwayFromImpassable(direction, impassableNeighborDirection, this.avoidance, this.avoidanceDampen);
+                    if (direction && hasImpassableNeighbor && avoidObstacles) {
+                        direction = this.adjustDirectionAwayFromImpassable(direction, impassableNeighborDirection, avoidance, avoidanceDampen);
                     }
     
-                    this.flowField[y][x] = { cost: lowestCost, direction };
+                    flowField[y][x] = direction;
                 }
             }
         }
@@ -242,65 +272,43 @@ export class FlowField {
     }
 
     convolveFlowField() {
-        // Define the kernel
-        let kernel = [
-            [0.05, 0.1, 0.05],
-            [0.1,  0.4,  0.1],
-            [0.05, 0.1, 0.05]
-        ];
+        // Define the kernel and its center offset for direct access
+        let kernel = [0.05, 0.1, 0.05, 0.1, 0.4, 0.1, 0.05, 0.1, 0.05];
+        let offsets = [-1, 0, 1];
     
-        // Create a padded grid for the results of the convolution
-        let paddedFlowField = this.initializeGrid({ cost: this.maxValue, direction: null }, this.width + 2, this.height + 2);
+        // Pre-calculate the width and height to avoid repeated access
+        const {width, height} = this;
     
-        // Copy the flow field into the padded grid, offset by one to account for the padding
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                paddedFlowField[y + 1][x + 1] = this.flowField[y][x];
-            }
-        }
+        // Initialize new flow field to avoid modifying the original during calculation
+        let newFlowField = this.initializeGrid({x: 0, y: 0}, width, height);
     
-        // Perform the convolution on the padded grid, excluding the padding from the result
-        let newFlowField = this.initializeGrid({ cost: this.maxValue, direction: null });
-        for (let y = 0; y < this.height; y++) {
-            for (let x = 0; x < this.width; x++) {
-                let directionSum = { x: 0, y: 0 };
-                let kernelSum = 0;
+        // Iterate over each cell excluding the border to apply the convolution
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                let sumX = 0, sumY = 0;
     
-                // Apply the kernel to the neighboring cells in the padded grid
-                for (let ky = 0; ky < kernel.length; ky++) {
-                    for (let kx = 0; kx < kernel[ky].length; kx++) {
-                        let paddedY = y + ky;
-                        let paddedX = x + kx;
-                        let weight = kernel[ky][kx];
-                        let currentCell = paddedFlowField[paddedY][paddedX];
-
-                        
-                        if (currentCell.direction) {
-                            directionSum.x += currentCell.direction.x * weight;
-                            directionSum.y += currentCell.direction.y * weight;
-                            kernelSum += weight;
-                        }
+                // Apply kernel to each neighbor
+                for (let i = 0; i < offsets.length; i++) {
+                    for (let j = 0; j < offsets.length; j++) {
+                        const offsetY = offsets[i], offsetX = offsets[j];
+                        const weight = kernel[(offsetY + 1) * 3 + (offsetX + 1)];
+                        const neighbor = this.flowField[y + offsetY][x + offsetX];
+    
+                        sumX += neighbor.x * weight;
+                        sumY += neighbor.y * weight;
                     }
                 }
     
-                // Average the direction values to get the smoothed direction
-                if (kernelSum > 0) {
-                    newFlowField[y][x] = {
-                        cost: this.flowField[y][x].cost, // Use the original cost
-                        direction: {
-                            x: directionSum.x / kernelSum,
-                            y: directionSum.y / kernelSum
-                        }
-                    };
-                }
+                // Assign the convolved value directly
+                newFlowField[y][x] = {x: sumX, y: sumY};
             }
         }
     
-        // Replace the old flow field with the convolved one
+        //note either use padding or copy edges from prev flowfield
+
+        // Update the flow field
         this.flowField = newFlowField;
     }
-
-
 
     directions = [
         {dx: -1, dy: 0}, {dx: 1, dy: 0},
@@ -331,7 +339,7 @@ export class FlowField {
 
     getDirection(x, y) {
         if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
-            return this.flowField[y]?.[x]?.direction;
+            return this.flowField[y]?.[x];
         }
         else return null;
     }
@@ -433,7 +441,7 @@ export class FlowField {
 
     drawFlowFieldCell = (ctx, x, y, cellSize) => {
         const cost = this.costField[y][x];
-        const direction = this.flowField[y][x].direction;
+        const direction = this.flowField[y][x];
     
         // Set cell color based on cost
         ctx.fillStyle = this.getCostFieldColor(cost);
@@ -506,12 +514,11 @@ export class FlowField {
         for (let i = 0; i < numberOfDots; i++) {
             const x = Math.floor(Math.random() * this.width);
             const y = Math.floor(Math.random() * this.height);
-            const dot = new Dot(x, y, undefined, undefined, this.maxValue);
+            const dot = new Dot(x, y, this.speedModifier, undefined, this.maxValue);
             this.dots.push(dot);
             dot.teleportToNearestPassableCell(this.costField,this.width,this.height);
         }
     }
-
 
     updateDots() {
         const collisionRadius = 0.5; // Radius for checking collisions
@@ -633,7 +640,7 @@ class Dot {
                     const newY = Math.floor(this.y) + dy;
                     if (newX >= 0 && newY >= 0 && newX < fieldWidth && newY < fieldHeight) {
                         if (costField[newY][newX] !== this.maxValue) {
-                            console.log('teleporting')
+                            //console.log('teleporting')
                             this.x = newX;
                             this.y = newY;
                             return;
