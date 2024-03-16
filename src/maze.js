@@ -188,6 +188,49 @@ export class Maze {
         // Return null if the coordinates are out of bounds
         return null;
     }
+
+    //get maze data template
+    getCellData() {
+        let data = [];
+        for(let i = 0; i < this.height; i++) {
+            data.push([]);
+            for(let j = 0; j < this.width; j++) {
+                const cell = this.cells[i][j];
+
+                data[i].push({
+                    walls:cell.walls,
+                    x:cell.x,
+                    y:cell.y,
+                    isStart:cell.isStart,
+                    isEnd:cell.isEnd,
+                    id:cell.id,
+                    doors:cell.doors,
+                    keys:cell.keys
+                })
+            }
+        }
+        return data;
+    }
+
+    //set maze data from template
+    setCellData(data=[[]],allowDiagonal=false) {
+        let cells = [];
+        data.forEach((row,y) => {
+            let r = [];
+            row.forEach((celldata,x) => {
+                let mazecell = new MazeCell(x,y,this);
+                Object.assign(mazecell,celldata);
+                r.push(mazecell);
+                if(celldata.isStart) this.start = mazecell;
+                if(celldata.isEnd) this.end = mazecell;
+            });
+            cells.push(r);
+        });
+        this.width = data[0].length;
+        this.height = data.length;
+        this.allowDiagonal = allowDiagonal
+        this.cells = cells;
+    }
       
     getNeighbors(cell, allowDiagonal=false) {
         const neighbors = []; 
@@ -378,11 +421,11 @@ export class Maze {
         // Set a random ending point on a different edge
         
         // Select a different end edge from the start edge
-        //let endEdge = (startEdge + 2) % 4; // This ensures opposite edge, remove this logic if you want a random different edge but not opposite
+        let endEdge = (startEdge + 2) % 4; // This ensures opposite edge, remove this logic if you want a random different edge but not opposite
        
         // Select a different end edge from the start edge
-        let possibleEndEdges = [0, 1, 2, 3].filter(e => e !== startEdge);
-        let endEdge = possibleEndEdges[Math.floor(this.seed.random() * possibleEndEdges.length)];
+        //let possibleEndEdges = [0, 1, 2, 3].filter(e => e !== startEdge);
+        //let endEdge = possibleEndEdges[Math.floor(this.seed.random() * possibleEndEdges.length)];
         
         // Calculate a safe range for end positions to avoid being too close to start
         let safeEndRanges = {
@@ -671,9 +714,21 @@ export class Maze {
         }
     }
 
-    draw(context, size, strokeStyle='blue', drawPlayerPaths=true, clear=true) {
+    draw(context, size, strokeStyle='blue', drawPlayerPaths=true, clear=true, mirrorX=false, mirrorY=false) {
 
         if(clear) context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+
+        if(mirrorX || mirrorY) {
+            if(mirrorX) {
+                context.translate(context.canvas.width*-1,0);
+            }
+            if(mirrorY) {
+                context.translate(0,context.canvas.height);
+            }
+            let x = mirrorX ? -1 : 1;
+            let y = mirrorY ? -1 : 1;
+            context.scale(x,y);
+        }
 
         // Draw color trails first
         let lastSeed = this.seed.randF;
@@ -684,20 +739,34 @@ export class Maze {
             for (let x = 0; x < this.width; x++) {
                 const cell = this.cells[y][x];
                 
-                for (const playerIndex in this.players) {
-                    const player = this.players[playerIndex];
-                    if (drawPlayerPaths && this.visitedCells[playerIndex]) {
-                        const visitedIndex = [...this.visitedCells[playerIndex]].reverse().findIndex(v => v.cell === cell);
-                        if (visitedIndex !== -1 && cell !== player.currentCell) {
-                            const alpha = cell === player.cell ? 1 : 0.6 - (this.visitedCells[playerIndex].length - (this.visitedCells[playerIndex].length - visitedIndex)) / this.visitedCells[playerIndex].length;
-                            
-                            //only use rgba strings or {r,g,b} objects
-                            let col = typeof player.color === 'string' ? this.replaceAlphaInRgba(player.color, alpha) : `rgba(${player.color.r}, ${player.color.g}, ${player.color.b}, ${alpha})`;
-                            context.fillStyle = col;
-                            context.fillRect(cell.x * size, cell.y * size, size, size);
+                if(Object.keys(this.players) > 0) {
+
+                    for (const playerIndex in this.players) {
+                        const player = this.players[playerIndex];
+                        if (drawPlayerPaths && this.visitedCells[playerIndex]) {
+                            const visitedIndex = [...this.visitedCells[playerIndex]].reverse().findIndex(v => v.cell === cell);
+                            if (visitedIndex !== -1 && cell !== player.currentCell) {
+                                const alpha = cell === player.cell ? 1 : 0.6 - (this.visitedCells[playerIndex].length - (this.visitedCells[playerIndex].length - visitedIndex)) / this.visitedCells[playerIndex].length;
+                                
+                                //only use rgba strings or {r,g,b} objects
+                                let col = typeof player.color === 'string' ? this.replaceAlphaInRgba(player.color, alpha) : `rgba(${player.color.r}, ${player.color.g}, ${player.color.b}, ${alpha})`;
+                                context.fillStyle = col;
+                                context.fillRect(cell.x * size, cell.y * size, size, size);
+                            }
                         }
+                        context.strokeStyle = strokeStyle;
+                        cell.draw(
+                            context, 
+                            size, 
+                            strokeStyle,
+                            this.allowDiagonal,
+                            this.drawFiddleHeads, 
+                            this.seed,
+                            true
+                        );
+                        if(cell.doors || cell.keys) doorCells.push(cell);
                     }
-                    context.strokeStyle = strokeStyle;
+                } else {
                     cell.draw(
                         context, 
                         size, 
@@ -712,7 +781,6 @@ export class Maze {
             }
         }
         context.stroke(); //faster not to do it per-cell
-
         if(doorCells.length > 0) {
             doorCells.forEach((cell) => {
                 cell.draw(
@@ -1009,12 +1077,13 @@ let walls3D = {
 
 //object representation of a maze cell in an xy grid
 export class MazeCell {
+    walls = { up: true, right: true, down: true, left: true, upRight:true, upLeft:true, downRight:true, downLeft:true }; //octagonal coordinates
+   
     x; y; 
     isStart; isEnd; 
     visited = false; // A flag to indicate whether this cell has been visited during maze generation
     id = Math.random();
       // All cells start with all walls intact
-    walls = { up: true, right: true, down: true, left: true, upRight:true, upLeft:true, downRight:true, downLeft:true }; //octagonal coordinates
     
     //
     doors;
@@ -1029,7 +1098,8 @@ export class MazeCell {
         this.y = y;
         this.maze = maze;
 
-        if(threeDimensional) Object.assign(this.walls, walls3D);
+        if(threeDimensional) 
+            Object.assign(this.walls, walls3D);
     }
   
     // Method to remove walls between this cell and another cell
