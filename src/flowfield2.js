@@ -69,6 +69,23 @@ export class FlowField2 {
         }
     }
 
+    //set costfield and reset integration and flowfields
+    setCostField(
+        field, 
+        width, 
+        height, 
+        allowDiagonal
+    ) {
+        if(width) this.width = width;
+        if(height) this.height = height;
+        if(allowDiagonal) this.allowDiagonal = allowDiagonal;
+        this.costField = field;
+        this.integrationField = new Float32Array(totalSize).fill(this.maxValue);
+        this.flowFieldX = new Float32Array(totalSize).fill(0); // X component of flow direction
+        this.flowFieldY = new Float32Array(totalSize).fill(0); // Y component of flow direction
+        this.neighborCache = [];
+    }
+
     setMazeTerrain = (maze) => {
         // Loop through each MazeCell and update the corresponding 7x7 grid
         for (let y = 0; y < maze.height; y++) {
